@@ -1,0 +1,3 @@
+[submodule "aichallenge"]
+	path = aichallenge
+	url = git://github.com/aichallenge/aichallenge.git

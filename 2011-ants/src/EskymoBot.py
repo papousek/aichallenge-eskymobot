@@ -56,7 +56,7 @@ class EskymoBot:
         # without food                        
         for ant_loc in ants:
             use_last_move = True
-            if (random.randint(1,100) > 40):
+            if (random.randint(1,100) > 90):
                 use_last_move = False
             self.driver.move_random(ant_loc, ['n','e','s','w'], use_last_move)
                 

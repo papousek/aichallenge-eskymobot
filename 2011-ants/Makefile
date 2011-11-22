@@ -2,6 +2,7 @@ clean:
 	if [ -d "target" ]; then \
 		rm -rf target; \
 	fi
+	rm -rf src/*~
 	
 init:
 	if [ ! -d "target" ]; then \
@@ -16,10 +17,10 @@ tools: init
 
 package: tools
 	cp src/* target;
-#	cp ../aichallenge/ants/dist/starter_bots/python/ants.py ./target;
+	cp ../aichallenge/ants/dist/starter_bots/python/ants.py ./target;
 
 test: package
 	more target/test_input.txt | python target/MyBot.py;
 
 run: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_04p_01.map "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/tools/sample_bots/python/HunterBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \

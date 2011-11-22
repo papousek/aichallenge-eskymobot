@@ -66,7 +66,7 @@ class AntsDriver(Ants):
     def update_hills(self, old_hills, visible_hills):
         tmp_hills = []
         for hill_loc in old_hills:
-            if (self.visible(hill_loc) and not hill_loc in old_hills):
+            if (self.visible(hill_loc) and not hill_loc in visible_hills):
                 continue
             tmp_hills.append(hill_loc)
         for hill_loc in visible_hills:

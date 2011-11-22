@@ -2,7 +2,7 @@ clean:
 	if [ -d "target" ]; then \
 		rm -rf target; \
 	fi
-	rm -rf src/*~
+	rm -rf src/*~;
 	
 init:
 	if [ ! -d "target" ]; then \

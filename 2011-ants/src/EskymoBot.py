@@ -55,7 +55,10 @@ class EskymoBot:
             self.driver.move_to(ant_loc, closest_food)            
         # without food                        
         for ant_loc in ants:
-            self.driver.move_random(ant_loc)
+            use_last_move = True
+            if (random.randint(1,100) > 40):
+                use_last_move = False
+            self.driver.move_random(ant_loc, ['n','e','s','w'], use_last_move)
                 
 
     def do_turn(self):
@@ -76,7 +79,7 @@ class EskymoBot:
             num_of_defenders_sum = num_of_defenders_sum + num_of_defenders
         # attackers
         for hill_loc in self.driver.all_enemy_hills():
-            num_of_attackers = max((num_of_ants - num_of_defenders_sum) / (num_of_enemy_hills + 1) - 10, 0)
+            num_of_attackers = max((num_of_ants - num_of_defenders_sum) / (num_of_enemy_hills + 1) - 4, 0)
             ants = sorted(ants, key=lambda ant:self.driver.distance(ant,hill_loc))
             attackers = ants[:num_of_attackers]
             ants = ants[num_of_attackers:]

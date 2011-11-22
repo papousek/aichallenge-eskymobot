@@ -11,7 +11,9 @@ class AntsDriver(Ants):
     driver_destinations = []
     driver_my_hills = []
     driver_enemy_hills = []
-    
+    driver_last_moves = {}    
+    driver_current_moves = {}
+
     def all_enemy_hills(self):
         return self.driver_enemy_hills
 
@@ -35,6 +37,12 @@ class AntsDriver(Ants):
     def finish_turn(self):
         Ants.finish_turn(self)
         self.driver_destinations = []
+        self.driver_last_moves = self.driver_current_moves
+        self.driver_current_moves = {}
+
+    def issue_order(self, order):
+        Ants.issue_order(self, order)
+        self.driver_current_moves[self.destination(order[0], order[1])] = order[1]
 
     def move(self, ant_loc, direction):
         new_loc = self.destination(ant_loc, direction)
@@ -45,7 +53,11 @@ class AntsDriver(Ants):
         else:
             return False
 
-    def move_random(self, ant_loc, directions = ['n','e','s','w']):
+    def move_random(self, ant_loc, directions = ['n','e','s','w'], use_last_move = False):
+        if (use_last_move and ant_loc in self.driver_last_moves.keys()):
+            preferred_direction = self.driver_last_moves[ant_loc]
+            if (self.move(ant_loc, preferred_direction)):
+                return True
         shuffle(directions)
         for direction in directions:
             if (self.move(ant_loc, direction)):

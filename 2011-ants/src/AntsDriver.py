@@ -8,11 +8,13 @@ except ImportError:
 
 class AntsDriver(Ants):
 
-    driver_destinations = []
-    driver_my_hills = []
-    driver_enemy_hills = []
-    driver_last_moves = {}    
-    driver_current_moves = {}
+    def __init__(self):
+        Ants.__init__(self)
+        self.driver_destinations = []
+        self.driver_my_hills = []
+        self.driver_enemy_hills = []
+        self.driver_last_moves = {}
+        self.driver_current_moves = {}
 
     def all_enemy_hills(self):
         return self.driver_enemy_hills

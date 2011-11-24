@@ -1,0 +1,16 @@
+-------------------------------------------------------------
+Jednoduchy slovnicek pojmu pro tento projekt, snad pomuze ...
+-------------------------------------------------------------
+
+
+--- Potencialova pole (potential fields) ---
+Jde o myslenku definovat potencial objektu (potrava, kopce, ...) a spocitat ho
+ve vsech polickach na mape. Cim blize jsem u objektu, tim vyssi je muj potencial
+vuci nemu, když jdu dál, tak potencial slabne. Tim ziskam nekolik potencialovych
+map (jednu pro kazdou zajimavou vec na mape), napr. potencialovou mapu potravy,
+souperovych kopcu, neprozkoumanych policek apod. Kazdy mravenec se podle sveho
+druhu zajima o jine poten. mapy (sberac dava prednost potrave, ale pokud je potrava
+daleko, jde zkoumat neprobadane konciny). Rozhodnuti o jeho dalsim tahu se provadi
+vyhradne lokalne - zjistim potencial ctyr sousednich policek a vyberu to s nejvyssim
+potencialem.
+

@@ -88,5 +88,6 @@ class AntsDriver(Ants):
                 tmp_hills.append(hill_loc)
         return tmp_hills
     
-    
+    def neighbours(self, loc):
+        return [self.destination(loc, dir) for dir in ['n','e','s','w']]
         

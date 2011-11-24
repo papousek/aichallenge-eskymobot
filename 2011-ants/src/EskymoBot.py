@@ -1,17 +1,45 @@
 from AntsDriver import *
-                   
+from Maps import Terrain
+from Fields import FoodPotentialField, EnemyHillPotentialField, UnchartedPotentialField
+
 class EskymoBot:
 
     def __init__(self):
-        pass
+        self.terrain = Terrain()
+        self.food_potential_field = FoodPotentialField()
+        self.enemy_hill_potential_field = EnemyHillPotentialField()
+        self.uncharted_potential_field = UnchartedPotentialField()
 
     def do_setup(self, driver):
         self.driver = driver
-        pass
+        self.terrain.setup(self.driver)
+        self.food_potential_field.setup(self.driver, self.terrain)
+        self.enemy_hill_potential_field.setup(self.driver, self.terrain)
+        self.uncharted_potential_field.setup(self.driver, self.terrain)
     
+    def compute_farmer_potential(self, loc):
+        """ Computes total potential on specified location on the map for farmers """
+        return \
+            1.0 * self.food_potential_field.get_potential(loc) + \
+            0.2 * self.uncharted_potential_field.get_potential(loc) + \
+            0.0 * self.enemy_hill_potential_field.get_potential(loc)
+
+    def compute_attacker_potential(self, loc):
+        """ Computes total potential on specified location on the map for attackes """
+        return \
+            0.2 * self.food_potential_field.get_potential(loc) + \
+            0.05 * self.uncharted_potential_field.get_potential(loc) + \
+            10.0 * self.enemy_hill_potential_field.get_potential(loc, 0.95)
+        
     def attack(self, ants, hill_loc):
         for ant_loc in ants:
-            self.driver.move_to(ant_loc, hill_loc)
+            # For all four possible ways get the potential from potential map
+            potentials = [(direction, self.compute_attacker_potential(self.driver.destination(ant_loc, direction)))
+                    for direction in ['n','e','s','w']]
+            # Find the best way to move (preferably the one with the greatest potential)
+            for direction, potential in sorted(potentials, key = lambda (d1, p1): -p1):
+                if self.driver.move(ant_loc, direction):
+                    break
     
     def defend(self, ants, hill_loc):
         for ant_loc in ants:
@@ -22,6 +50,16 @@ class EskymoBot:
                 self.driver.move_random(ant_loc)
             else:
                 self.driver.move_to(ant_loc, hill_loc)
+
+    def farm(self, ants):
+        for ant_loc in ants:
+            # For all four possible ways get the potential from potential map
+            potentials = [(direction, self.compute_farmer_potential(self.driver.destination(ant_loc, direction)))
+                    for direction in ['n','e','s','w']]
+            # Find the best way to move (preferably the one with the greatest potential)
+            for direction, potential in sorted(potentials, key = lambda (d1, p1): -p1):
+                if self.driver.move(ant_loc, direction):
+                    break
 
     def max_number_of_defenders(self, hill_loc):
         result = 0
@@ -59,9 +97,16 @@ class EskymoBot:
             if (random.randint(1,100) > 90):
                 use_last_move = False
             self.driver.move_random(ant_loc, ['n','e','s','w'], use_last_move)
-                
-
+    
     def do_turn(self):
+        # update attributes
+        self.terrain.update()
+        self.food_potential_field.update()
+        self.enemy_hill_potential_field.update()
+        self.uncharted_potential_field.update()
+        #f = open('tmp_map.txt', 'a')
+        #f.write(self.food_potential_field.render_text_map())
+        #f.close()
         # available ants
         ants = self.driver.my_ants()
         num_of_ants = len(ants)
@@ -87,4 +132,4 @@ class EskymoBot:
             num_of_attackers_sum = num_of_attackers_sum + num_of_attackers
         # farmers
         farmers = ants
-        self.random_walk(farmers)
+        self.farm(farmers)

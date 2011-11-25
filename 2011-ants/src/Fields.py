@@ -1,9 +1,23 @@
-from Queue import PriorityQueue
+import heapq
 from collections import deque
 from ants import LAND
 from Maps import UNCHARTED
 
 #TODO There is no need to calculated the whole potential field during update, find a better way
+
+class PriorityQueue:
+    def __init__(self):
+        self.queue = []
+    
+    def empty(self):
+        return self.queue == []
+    
+    def put(self, (priority, value)):
+        heapq.heappush(self.queue, (priority, value))
+    
+    def get(self):
+        priority, value = heapq.heappop(self.queue)
+        return (priority, value)
 
 class PotentialField:
     """ PotentialField represents a map with information about somehow defined

@@ -249,7 +249,7 @@ class PotentialFieldWithSources(PotentialField):
         return self.sources[row][col]
         
     def spread(self, sources, depth):
-        """ Spreads the intensity from specified sources using distances of the sources. Assumes sources is empty """
+        """ Spreads the intensity from specified sources using distances of the sources. Assumes self.sources is full of empty sets """
         q = deque()
         for source in sources:
             self.set_at(source, 0)
@@ -267,7 +267,7 @@ class PotentialFieldWithSources(PotentialField):
                     self.merge_sources(to_spread, self.get_at_sources(loc))
                     if self.get_at(to_spread) < depth:
                         q.append(to_spread)
-                elif self.get_at(to_spread) == self.get_at(loc):
+                elif self.get_at(to_spread) == self.get_at(loc) + 1:
                     self.merge_sources(to_spread, self.get_at_sources(loc))
     
     def get_sources(self):

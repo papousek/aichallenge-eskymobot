@@ -1,5 +1,6 @@
 from ants import *
 from random import shuffle
+from time import *
 
 try:
     from sys import maxint
@@ -73,6 +74,7 @@ class AntsDriver(Ants):
 
     def update(self, map_data):
         Ants.update(self, map_data)
+        self.my_ants_loc = self.my_ants()[:]
         self.driver_my_hills = self.update_hills(self.driver_my_hills, self.my_hills())
         visible_enemy_hills = map(lambda x: x[0], self.enemy_hills())
         self.driver_enemy_hills = self.update_hills(self.driver_enemy_hills, visible_enemy_hills) 
@@ -90,4 +92,10 @@ class AntsDriver(Ants):
     
     def neighbours(self, loc):
         return [self.destination(loc, dir) for dir in ['n','e','s','w']]
-        
+    
+    def log(self, text):
+        f = open("eskymo.log", "a")
+        f.write("[" + strftime("%Y-%m-%d %H:%M:%S") + "]\n")
+        f.write(text)
+        f.write("\n")
+        f.close()

@@ -1,14 +1,21 @@
 from AntsDriver import *
 from Maps import Terrain
-from Fields import FoodPotentialField, EnemyHillPotentialField, UnchartedPotentialField
+from Fields import *
+
+            #1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(10 - x, 0) / 10.0) + \
+            #0.2 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: max(30 - x, 0) / 30.0) +\
+            #0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)
+            #0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            #0.2 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            #0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x)
 
 class EskymoBot:
 
     def __init__(self):
         self.terrain = Terrain()
-        self.food_potential_field = FoodPotentialField()
         self.enemy_hill_potential_field = EnemyHillPotentialField()
         self.uncharted_potential_field = UnchartedPotentialField()
+        self.food_potential_field = FoodPotentialFieldWithSources()
 
     def do_setup(self, driver):
         self.driver = driver
@@ -20,16 +27,16 @@ class EskymoBot:
     def compute_farmer_potential(self, loc):
         """ Computes total potential on specified location on the map for farmers """
         return \
-            1.0 * self.food_potential_field.get_potential(loc) + \
-            0.2 * self.uncharted_potential_field.get_potential(loc) + \
-            0.0 * self.enemy_hill_potential_field.get_potential(loc)
+            1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            0.2 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x)
 
     def compute_attacker_potential(self, loc):
         """ Computes total potential on specified location on the map for attackes """
         return \
-            0.2 * self.food_potential_field.get_potential(loc) + \
-            0.05 * self.uncharted_potential_field.get_potential(loc) + \
-            10.0 * self.enemy_hill_potential_field.get_potential(loc, 0.95)
+            1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            0.05 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            10.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x)
         
     def attack(self, ants, hill_loc):
         for ant_loc in ants:
@@ -101,12 +108,10 @@ class EskymoBot:
     def do_turn(self):
         # update attributes
         self.terrain.update()
-        self.food_potential_field.update()
+        self.food_potential_field.update(10)
         self.enemy_hill_potential_field.update()
         self.uncharted_potential_field.update()
-        #f = open('tmp_map.txt', 'a')
-        #f.write(self.food_potential_field.render_text_map())
-        #f.close()
+        #self.driver.log(self.food_limited_pot_field.render_text_map())
         # available ants
         ants = self.driver.my_ants()
         num_of_ants = len(ants)

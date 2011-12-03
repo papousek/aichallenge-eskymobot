@@ -27,7 +27,17 @@ class PotentialField:
         self.rows = None
         self.cols = None
         self.field = None
+        self.driver = None
+        self.terrain = None
         
+    def setup(self, driver, terrain):
+        """ Initializes this potential field (allocates its variables) """
+        self.rows = driver.rows
+        self.cols = driver.cols
+        self.field = [[None for col in range(self.cols)] for row in range(self.rows)]
+        self.driver = driver
+        self.terrain = terrain
+
     def get_at(self, (row, col)):
         """ Returns raw data in potential field """
         return self.field[row][col]
@@ -59,7 +69,14 @@ class MinLandIntegerPotentialField(PotentialField):
         self.driver = driver
         self.terrain = terrain
         self.sources = []
-    
+
+    def get_potential(self, loc, none_value, poten_func):
+        """ Computes potential on specified position in the field """
+        if self.get_at(loc) == None:
+            return none_value
+        else:
+            return poten_func(self.get_at(loc))
+        
     def remove_fields_of_source(self, source):
         """ Finds fields whose intensity is influenced by specified source and removes
         intensity from them (set the distance to None). Returns list of those fiels (in any order).
@@ -159,7 +176,6 @@ class MinLandIntegerPotentialField(PotentialField):
         tmp += '\n'
         return tmp
 
-
 class FoodPotentialField(MinLandIntegerPotentialField):
     """ FoodPotentialField represents potential field where places with food has intensity value 0"""
 
@@ -175,13 +191,6 @@ class FoodPotentialField(MinLandIntegerPotentialField):
         # just a simple implementation
         self.sources = self.driver.food_list[:]
         self.recalculate()
-
-    def get_potential(self, loc, falloff_exp = 0.5):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return 0
-        else:
-            return falloff_exp ** self.get_at(loc)
             
 class EnemyHillPotentialField(MinLandIntegerPotentialField):
     """ EnemyHillPotentialField represents potential field where places with enemy fills has intensity value 0"""
@@ -198,13 +207,6 @@ class EnemyHillPotentialField(MinLandIntegerPotentialField):
         # just a simple implementation
         self.sources = self.driver.driver_enemy_hills[:]
         self.recalculate()
-
-    def get_potential(self, loc, falloff_exp = 0.5):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return 0
-        else:
-            return falloff_exp ** self.get_at(loc)            
 
 class UnchartedPotentialField(MinLandIntegerPotentialField):
     """ UnchartedPotentialField represents potential field where uncharted places has intensity value 0"""
@@ -223,10 +225,86 @@ class UnchartedPotentialField(MinLandIntegerPotentialField):
                 if self.terrain.get_at((row,col)) == UNCHARTED]
         self.recalculate()
 
-    def get_potential(self, loc, falloff_exp = 0.5):
+        
+        
+        
+        
+        
+        
+class PotentialFieldWithSources(PotentialField):
+    def __init__(self):
+        PotentialField.__init__(self)
+        self.sources = None
+        
+    def setup(self, driver, terrain):
+        PotentialField.setup(self, driver, terrain)
+        self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+
+    def merge_sources(self, loc, sources):
+        row, col = loc
+        self.sources[row][col].update(sources)
+        
+    def get_at_sources(self, loc):
+        row, col = loc
+        return self.sources[row][col]
+        
+    def spread(self, sources, depth):
+        """ Spreads the intensity from specified sources using distances of the sources. Assumes sources is empty """
+        q = deque()
+        for source in sources:
+            self.set_at(source, 0)
+            row, col = source
+            self.sources[row][col].add(source)
+            q.append(source)
+
+        # Expand sources
+        while len(q) > 0:
+            loc = q.popleft()
+            for to_spread in [pos for pos in self.driver.neighbours(loc)
+                             if self.terrain.get_at(pos) == LAND]:
+                if self.get_at(to_spread) == None:
+                    self.set_at(to_spread, self.get_at(loc) + 1)
+                    self.merge_sources(to_spread, self.get_at_sources(loc))
+                    if self.get_at(to_spread) < depth:
+                        q.append(to_spread)
+                elif self.get_at(to_spread) == self.get_at(loc):
+                    self.merge_sources(to_spread, self.get_at_sources(loc))
+    
+    def get_sources(self):
+        return []
+    
+    def update(self, depth):
+        self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        self.field = [[None for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        self.spread(self.get_sources(), depth)
+
+    def render_text_map(self):
+        tmp = ''
+        for row in range(self.driver.rows):
+            tmp += '# '
+            for col in range(self.driver.cols):
+                val = self.get_at((row, col))
+                if val == None:
+                    tmp += '   ?   '
+                else:
+                    tmp += ' (%3i' % val
+                    tmp += str(self.get_at_sources((row, col)))
+                    tmp += ') '
+            tmp += '\n'
+        tmp += '\n'
+        return tmp
+
+    def get_potential(self, loc, none_value, poten_func):
         """ Computes potential on specified position in the field """
         if self.get_at(loc) == None:
-            return 0
+            return none_value
         else:
-            return falloff_exp ** self.get_at(loc)            
-            
+            return poten_func(self.get_at(loc))
+ 
+ 
+class FoodPotentialFieldWithSources(PotentialFieldWithSources):
+    def __init__(self):
+        PotentialFieldWithSources.__init__(self)
+        
+    def get_sources(self):
+        return self.driver.food_list

@@ -2,6 +2,7 @@ import heapq
 from collections import deque
 from ants import LAND
 from Maps import UNCHARTED
+from math import sqrt
 
 #TODO There is no need to calculated the whole potential field during update, find a better way
 
@@ -31,6 +32,13 @@ class PotentialField:
     def set_at(self, (row, col), value):
         """ Sets raw data in potential field """
         self.field[row][col] = value
+
+    def get_potential(self, loc, none_value, poten_func):
+        """ Computes potential on specified position in the field """
+        if self.get_at(loc) == None:
+            return none_value
+        else:
+            return poten_func(self.get_at(loc))
 
 class PotentialFieldWithSources(PotentialField):
     def __init__(self):
@@ -96,13 +104,6 @@ class PotentialFieldWithSources(PotentialField):
             tmp += '\n'
         tmp += '\n'
         return tmp
-
-    def get_potential(self, loc, none_value, poten_func):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return none_value
-        else:
-            return poten_func(self.get_at(loc))
  
     def is_source_expansion_allowed(self):
         return True 
@@ -127,7 +128,7 @@ class PotentialFieldWithSources(PotentialField):
 class FoodPotentialFieldWithSources(PotentialFieldWithSources):
         
     def get_sources(self):
-        return self.driver.food_list
+        return self.driver.all_food()
 
 class EnemyHillPotentialField(PotentialFieldWithSources):
 
@@ -157,4 +158,49 @@ class NotVisibleChartedPotentialField(PotentialFieldWithSources):
     def is_source_expansion_allowed(self):
         return False 
 
+class AntsPotentialField(PotentialField):
+    
+    def get_at(self, loc):
+        if (PotentialField.get_at(self, loc) == None):
+            self.compute_at(loc)
+        return PotentialField.get_at(self, loc)
 
+    def update(self):
+        self.field = [[None for col in range(self.cols)] for row in range(self.rows)]
+        self.enemy_ants = {}
+        for ant_loc, player in self.driver.enemy_ants():
+            if not player in self.enemy_ants:
+                self.enemy_ants[player] = []
+            self.enemy_ants[player].append(ant_loc)
+
+    def compute_at(self, loc):
+        enemy_radius2 = int(sqrt(self.driver.attackradius2) + 1) ** 2 
+        my_radius2 = self.driver.attackradius2
+        enemy_potential = 0
+        for ant, player in self.driver.enemy_ants():
+            if self.driver.radius2(loc, ant) <= enemy_radius2:
+                enemy_ant_potential = 0
+                for neigh_ant in self.enemy_ants[player]:
+                    if self.driver.radius2(ant, neigh_ant) <= enemy_radius2:
+                        enemy_ant_potential = enemy_ant_potential + 1
+                enemy_potential = max(enemy_ant_potential, enemy_potential)
+        my_potential = 0
+        for ant in self.driver.my_ants():
+            if self.driver.radius2(loc, ant) <= my_radius2:
+                    my_potential = my_potential + 1 
+        self.set_at(loc, my_potential - enemy_potential)
+
+    def render_text_map(self):
+        tmp = ''
+        for row in range(self.driver.rows):
+            tmp += '# '
+            for col in range(self.driver.cols):
+                val = self.field[row][col]
+                if val == None:
+                    tmp += '  ?  '
+                else:
+                    tmp += '%3i' % val
+                    tmp += '  '
+            tmp += '\n'
+        tmp += '\n'
+        return tmp

@@ -44,11 +44,17 @@ run: package
 run-old: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/v7/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
+run-old-revert: package
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/MyBot.py" "python target/v7/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+
 run-old-medium: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/random_walk/random_walk_04p_01.map "python target/v6/2011-ants/target/MyBot.py" "python target/v6/2011-ants/target/MyBot.py" "python target/v7/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-maze: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_01.map "python target/v7/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+
+run-old-maze-revert: package
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_01.map "python target/MyBot.py" "python target/v7/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-maze-medium: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_04p_01.map "python target/v7/2011-ants/target/MyBot.py" "python target/v7/2011-ants/target/MyBot.py" "python target/v7/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \

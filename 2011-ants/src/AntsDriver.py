@@ -56,7 +56,11 @@ class AntsDriver(Ants):
         else:
             return False
 
-    def move_random(self, ant_loc, directions = ['n','e','s','w'], use_last_move = False):
+    def move_random(self, ant_loc, directions = None, use_last_move = None):
+        if (directions == None):
+            directions = ['n','e','s','w']
+        if (use_last_move == None):
+            use_last_move = False
         if (use_last_move and ant_loc in self.driver_last_moves.keys()):
             preferred_direction = self.driver_last_moves[ant_loc]
             if (self.move(ant_loc, preferred_direction)):

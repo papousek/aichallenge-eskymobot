@@ -159,11 +159,17 @@ class EskymoBot:
     
     def do_turn(self):
         # update attributes
+        pre_t = self.driver.time_remaining()
         self.terrain.update()
+        pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
+        pre_fpf = self.driver.time_remaining()
         self.food_potential_field.update()
+        pre_ehpf = self.driver.time_remaining()
         self.enemy_hill_potential_field.update()
+        pre_upf = self.driver.time_remaining()
         self.uncharted_potential_field.update()
+        pre_ants = self.driver.time_remaining()
         #self.fog_potential_field.update()
         #self.ally_potential_field.update()
         #self.ants_potential_field.update()
@@ -193,4 +199,12 @@ class EskymoBot:
         # farmers
         farmers = sorted(ants, key = lambda ant: -self.compute_farmer_potential(ant))
         self.farm(farmers)
+        post_ants = self.driver.time_remaining()
+        if False:
+            self.driver.log("Terrain: " + str(-(pre_mwa - pre_t)) +
+                ", Map With Ants: " + str(-(pre_fpf - pre_mwa)) +
+                ", Food Field: " + str(-(pre_ehpf - pre_fpf)) +
+                ", Enemy Hill: " + str(-(pre_upf - pre_ehpf)) +
+                ", Uncharted: " + str(-(pre_ants - pre_upf)) +
+                ", Movement: " + str(-(post_ants - pre_ants)))
         

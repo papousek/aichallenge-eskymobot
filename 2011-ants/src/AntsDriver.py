@@ -16,6 +16,7 @@ class AntsDriver(Ants):
         self.driver_enemy_hills = []
         self.driver_last_moves = {}
         self.driver_current_moves = {}
+        self.turn_number = 0
 
     def all_enemy_hills(self):
         return self.driver_enemy_hills
@@ -74,6 +75,7 @@ class AntsDriver(Ants):
 
     def update(self, map_data):
         Ants.update(self, map_data)
+        self.turn_number += 1
         self.my_ants_loc = self.my_ants()[:]
         self.driver_my_hills = self.update_hills(self.driver_my_hills, self.my_hills())
         visible_enemy_hills = map(lambda x: x[0], self.enemy_hills())
@@ -92,10 +94,17 @@ class AntsDriver(Ants):
     
     def neighbours(self, loc):
         return [self.destination(loc, dir) for dir in ['n','e','s','w']]
-    
+
+    def radius2(self, loc1, loc2):
+        row1, col1 = loc1
+        row2, col2 = loc2
+        d_col = min(abs(col1 - col2), self.cols - abs(col1 - col2))
+        d_row = min(abs(row1 - row2), self.rows - abs(row1 - row2))
+        return d_col ** 2 + d_row ** 2 
+        
     def log(self, text):
         f = open("eskymo.log", "a")
-        f.write("[" + strftime("%Y-%m-%d %H:%M:%S") + "]\n")
+        f.write("[" + strftime("%Y-%m-%d %H:%M:%S") + "turn: " + str(self.turn_number) + "]\n")
         f.write(text)
         f.write("\n")
         f.close()

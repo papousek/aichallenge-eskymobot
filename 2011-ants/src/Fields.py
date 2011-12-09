@@ -225,11 +225,99 @@ class UnchartedPotentialField(MinLandIntegerPotentialField):
                 if self.terrain.get_at((row,col)) == UNCHARTED]
         self.recalculate()
 
+class FogPotentialField(MinLandIntegerPotentialField):
+    """ FogPotentialField represents potential field where places under fog has intensity value 0"""
+
+    def __init__(self):
+        MinLandIntegerPotentialField.__init__(self)
         
+    def setup(self, driver, terrain):
+        """ Initializes the field """
+        MinLandIntegerPotentialField.setup(self, driver, terrain)
         
+    def update(self):
+        """ Updates this object """
+        # just a simple implementation
+        # if vision map is not ready, initialize it
+        if (self.driver.vision == None):
+            self.driver.visible((0, 0))
         
+        # create sources from charted fields under fog
+        self.sources = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
+                if not self.driver.vision[row][col] and self.terrain.get_at((row,col)) == LAND]
+
+        self.recalculate()
         
+class AdditiveLandPotentialField(PotentialField):
+    """ AdditiveLandPotentialField represents a PotentialField with intensity computed
+    as a sum of intensities from neighbour sources. Intensity does not spread to uncharted
+    fields and it spreads only to LANDs """
+    def __init__(self):
+        PotentialField.__init__(self)
         
+    def setup(self, driver, terrain):
+        PotentialField.setup(self, driver, terrain)
+    
+    def eval_potential(self, position, distance):
+        """ Given position in the field a distance from a source, evaluates value of potential at
+        this position. Returns True if potential spreads to its neighborhood, False otherwise.
+        This method is to be overriden. """
+        return False        
+    
+    def spread(self, sources):
+        """ Spreads sources to its neighborhood. Adds their intensity to intensity
+        already stored in field. """
+        # temporary field stores information about where the last source has already spread
+        tmpfield = [[0 for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        tmpfield_get_at = lambda (row,col): tmpfield[row][col]
+        #tmpfield_set_at = lambda (row,col), what: (tmpfield[row][col] = what)
+        
+        # spread each source to its neighborhood
+        for i, source in enumerate(sources, start = 1):
+            if self.terrain.get_at(source) != LAND:
+                continue
+            row,col = source
+            tmpfield[row][col] = i
+            if not self.eval_potential(source, 0):
+                continue            
+            q = deque()
+            q.append((source, 0))
+            while len(q) > 0:
+                loc, dist = q.popleft()
+                for next in [pos for pos in self.driver.neighbours(loc) if self.terrain.get_at(pos) == LAND and tmpfield_get_at(pos) != i]:
+                    row,col = next
+                    tmpfield[row][col] = i
+                    if self.eval_potential(next, dist + 1):
+                        q.append((next, dist + 1))
+            
+class AllyPotentialField(AdditiveLandPotentialField):
+    """ AllyPotentialField has sources in places where allied ants are. Higher the intensity,
+    more ants are nearby. """ 
+    def __init__(self):
+        AdditiveLandPotentialField.__init__(self)
+        self.max_distance = 10
+
+    def setup(self, driver, terrain):
+        AdditiveLandPotentialField.setup(self, driver, terrain)
+
+    def eval_potential(self, position, distance):
+        if self.get_at(position) == None:
+            self.set_at(position, 1.0 - float(distance) / float(self.max_distance))
+        else:
+            self.set_at(position, 1.0 - float(distance) / float(self.max_distance) + self.get_at(position))
+        return distance < self.max_distance
+
+    def update(self):
+        """ Updates this object """
+        # just a simple implementation
+        self.field = [[0 for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        
+        # create sources from locations of my ants
+        self.spread(self.driver.my_ants())
+
+
+
+
         
 class PotentialFieldWithSources(PotentialField):
     def __init__(self):

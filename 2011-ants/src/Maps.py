@@ -43,4 +43,41 @@ class Terrain:
         for row in self.map:
             tmp += '# %s\n' % ''.join([terrain_render[col] for col in row])
         return tmp
+
+class MapWithAnts:
+    """ Map with information about where ants and other barriers are. Suitable if a question whether there is
+    an ant on specified location needs to run in constant time. """
+    
+    def __init__(self):
+        self.map = None
+        self.driver = None
+        self.terrain = None
+    
+    def setup(self, driver, terrain):
+        self.driver = driver
+        self.terrain = terrain
+        self.map = [[True for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+                    
+    def update(self):
+        self.map = [[self.terrain.get_at((row, col)) != LAND for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        for loc in self.driver.food_list:
+            self.place_ant(loc)
+        for loc, owner in self.driver.ant_list.items():
+            self.place_ant(loc)
         
+    def remove_ant(self, (row, col)):
+        self.map[row][col] = False
+
+    def place_ant(self, (row, col)):
+        self.map[row][col] = True
+
+    def get_at(self, (row, col)):
+        return self.map[row][col]
+        
+    def render_text_map(self):
+        tmp = ''
+        map_render = {True: 'O', False: '.'}
+        for row in self.map:
+            tmp += '# %s\n' % ''.join([map_render[col] for col in row])
+        return tmp
+ 

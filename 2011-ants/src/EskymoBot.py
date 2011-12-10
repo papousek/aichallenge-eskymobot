@@ -2,13 +2,6 @@ from AntsDriver import *
 from Maps import Terrain, MapWithAnts
 from Fields import *
 
-            #1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(10 - x, 0) / 10.0) + \
-            #0.2 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: max(30 - x, 0) / 30.0) +\
-            #0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)
-            #0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
-            #0.2 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
-            #0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x)
-
 class EskymoBot:
 
     def __init__(self):
@@ -16,10 +9,8 @@ class EskymoBot:
         self.map_with_ants = MapWithAnts()
         self.enemy_hill_potential_field = EnemyHillPotentialField()
         self.uncharted_potential_field = UnchartedPotentialField()
-        self.food_potential_field = FoodPotentialField()
+        self.food_potential_field = FoodPotentialFieldWithSources()
         self.fog_potential_field = FogPotentialField()
-        self.ally_potential_field = AllyPotentialField()
-        self.ants_potential_field = AntsPotentialField()
 
     def do_setup(self, driver):
         self.driver = driver
@@ -29,8 +20,6 @@ class EskymoBot:
         self.enemy_hill_potential_field.setup(self.driver, self.terrain)
         self.uncharted_potential_field.setup(self.driver, self.terrain)
         self.fog_potential_field.setup(self.driver, self.terrain)
-        self.ally_potential_field.setup(self.driver, self.terrain)
-        self.ants_potential_field.setup(self.driver, self.terrain)
         self.attackradius2_plus_one = int((sqrt(self.driver.attackradius2) + 1.0) ** 2.0)
         self.attackradius2_plus_two = int((sqrt(self.driver.attackradius2) + 2.0) ** 2.0)
     
@@ -72,17 +61,21 @@ class EskymoBot:
     def compute_farmer_potential(self, loc):
         """ Computes total potential on specified location on the map for farmers """
         return \
+            0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
+            1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
+            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)
+
+    def compute_scouter_potential(self, loc):
+        return \
             1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
-            0.0 * self.fog_potential_field.get_potential(loc, 0, lambda x: max(9, 25 * (1.1 ** (-x)))) + \
-            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)
+            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
 
     def compute_attacker_potential(self, loc):
         """ Computes total potential on specified location on the map for attackes """
         return \
             1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
-            0.0 * self.fog_potential_field.get_potential(loc, 0, lambda x: max(9, 25 * (1.1 ** (-x)))) + \
             10.0 * self.enemy_hill_potential_field.get_potential(loc, 10000000, lambda x: -1000 * x)
         
     def attack(self, ants, hill_loc):
@@ -108,16 +101,43 @@ class EskymoBot:
                 self.move_to(ant_loc, hill_loc)
 
     def farm(self, ants):
-        for ant_loc in ants:
+        lost_ants = []
+        food_key_function = lambda ant: self.food_potential_field.get_potential(ant, maxint, lambda x: x)
+        sorted_ants = sorted(ants, key = food_key_function)
+        hunted_food = []
+        for ant in sorted_ants:
+            if (food_key_function(ant) == maxint):
+                lost_ants.append(ant)
+            else:
+                possibilities = self.food_potential_field.get_at_sources(ant).difference(hunted_food)
+                if (len(possibilities) == 0):
+                    lost_ants.append(ant)
+                else:
+                    my_target_source = possibilities.pop()
+                    my_distance = self.food_potential_field.get_potential(ant, maxint, lambda x:x)
+                    for direction, pos in [(self.driver.direction(ant, pos).pop(), pos) for pos in self.driver.neighbours(ant) if my_target_source in self.food_potential_field.get_at_sources(pos) and my_distance > self.food_potential_field.get_potential(pos, maxint, lambda x:x)]:
+                        enemy_ants = self.compute_enemies(self.driver.destination(ant, direction), 0, self.attackradius2_plus_one)
+                        enemies = reduce(lambda x,y:min(x,y), filter(lambda x: x > 0, [len(self.compute_enemies(loc, owner, self.attackradius2_plus_two)) for (loc, owner) in enemy_ants]), 100)
+                        if (len(enemy_ants) == 0 or len(enemy_ants) < enemies) and self.try_to_move_ant(ant, direction):
+                            hunted_food.append(my_target_source)
+                            break
+                    else:
+                        lost_ants.append(ant)
+
+        sorted_lost_ants = sorted(lost_ants, key = lambda ant_loc: - self.compute_scouter_potential(ant_loc))
+
+        for ant_loc in sorted_lost_ants:
             # For all four possible ways get the potential from potential map
-            potentials = [(direction, self.compute_farmer_potential(self.driver.destination(ant_loc, direction)))
-                    for direction in ['n','e','s','w']]
+            directions = ['n','e','s','w']
+            potentials = [(direction, self.compute_scouter_potential(self.driver.destination(ant_loc, direction)))
+                    for direction in directions]
             # Find the best way to move (preferably the one with the greatest potential)
+            shuffle(potentials)
             for direction, potential in sorted(potentials, key = lambda (d1, p1): -p1):
                 enemy_ants = self.compute_enemies(self.driver.destination(ant_loc, direction), 0, self.attackradius2_plus_one)
                 enemies = reduce(lambda x,y:min(x,y), filter(lambda x: x > 0, [len(self.compute_enemies(loc, owner, self.attackradius2_plus_two)) for (loc, owner) in enemy_ants]), 100)
                 if (len(enemy_ants) == 0 or len(enemy_ants) < enemies) and self.try_to_move_ant(ant_loc, direction):
-                    break
+                    break 
 
     def max_number_of_defenders(self, hill_loc):
         result = 0
@@ -164,15 +184,14 @@ class EskymoBot:
         pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
         pre_fpf = self.driver.time_remaining()
-        self.food_potential_field.update()
+        self.food_potential_field.update(10)
         pre_ehpf = self.driver.time_remaining()
         self.enemy_hill_potential_field.update()
         pre_upf = self.driver.time_remaining()
         self.uncharted_potential_field.update()
+        pre_upfg = self.driver.time_remaining()
+        self.fog_potential_field.update(20)
         pre_ants = self.driver.time_remaining()
-        #self.fog_potential_field.update()
-        #self.ally_potential_field.update()
-        #self.ants_potential_field.update()
         #self.driver.log(self.map_with_ants.render_text_map())
         # available ants
         ants = self.driver.my_ants()
@@ -205,6 +224,7 @@ class EskymoBot:
                 ", Map With Ants: " + str(-(pre_fpf - pre_mwa)) +
                 ", Food Field: " + str(-(pre_ehpf - pre_fpf)) +
                 ", Enemy Hill: " + str(-(pre_upf - pre_ehpf)) +
-                ", Uncharted: " + str(-(pre_ants - pre_upf)) +
+                ", Uncharted: " + str(-(pre_upfg - pre_upf)) +
+                ", Fog: " + str(-(pre_ants - pre_upfg)) +
                 ", Movement: " + str(-(post_ants - pre_ants)))
         

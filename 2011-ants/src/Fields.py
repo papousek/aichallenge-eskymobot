@@ -46,6 +46,13 @@ class PotentialField:
     def set_at(self, (row, col), value):
         """ Sets raw data in potential field """
         self.field[row][col] = value
+
+    def get_potential(self, loc, none_value, poten_func):
+        """ Computes potential on specified position in the field """
+        if self.get_at(loc) == None:
+            return none_value
+        else:
+            return poten_func(self.get_at(loc))
         
 class MinLandIntegerPotentialField(PotentialField):
     """ MinChartedIntegerPotentialField represents a PotentialField with intensity based
@@ -70,13 +77,6 @@ class MinLandIntegerPotentialField(PotentialField):
         self.driver = driver
         self.terrain = terrain
         self.sources = []
-
-    def get_potential(self, loc, none_value, poten_func):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return none_value
-        else:
-            return poten_func(self.get_at(loc))
         
     def remove_fields_of_source(self, source):
         """ Finds fields whose intensity is influenced by specified source and removes
@@ -226,29 +226,6 @@ class UnchartedPotentialField(MinLandIntegerPotentialField):
                 if self.terrain.get_at((row,col)) == UNCHARTED]
         self.recalculate()
 
-class FogPotentialField(MinLandIntegerPotentialField):
-    """ FogPotentialField represents potential field where places under fog has intensity value 0"""
-
-    def __init__(self):
-        MinLandIntegerPotentialField.__init__(self)
-        
-    def setup(self, driver, terrain):
-        """ Initializes the field """
-        MinLandIntegerPotentialField.setup(self, driver, terrain)
-        
-    def update(self):
-        """ Updates this object """
-        # just a simple implementation
-        # if vision map is not ready, initialize it
-        if (self.driver.vision == None):
-            self.driver.visible((0, 0))
-        
-        # create sources from charted fields under fog
-        self.sources = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
-                if not self.driver.vision[row][col] and self.terrain.get_at((row,col)) == LAND]
-
-        self.recalculate()
-        
 class AdditiveLandPotentialField(PotentialField):
     """ AdditiveLandPotentialField represents a PotentialField with intensity computed
     as a sum of intensities from neighbour sources. Intensity does not spread to uncharted
@@ -364,13 +341,6 @@ class AntsPotentialField(PotentialField):
             tmp += '\n'
         tmp += '\n'
         return tmp
-        
-    def get_potential(self, loc, none_value, poten_func):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return none_value
-        else:
-            return poten_func(self.get_at(loc))
 
         
 class PotentialFieldWithSources(PotentialField):
@@ -390,13 +360,14 @@ class PotentialFieldWithSources(PotentialField):
         row, col = loc
         return self.sources[row][col]
         
-    def spread(self, sources, depth):
-        """ Spreads the intensity from specified sources using distances of the sources. Assumes sources is empty """
+    def spread(self, sources, depth_limit):
+        """ Spreads the intensity from specified sources using distances of the sources. Assumes self.sources is full of empty sets """
         q = deque()
         for source in sources:
-            self.set_at(source, 0)
+            self.init_potential(source, depth_limit)
             row, col = source
-            self.sources[row][col].add(source)
+            if self.is_source_expansion_allowed():
+                self.sources[row][col].add(source)
             q.append(source)
 
         # Expand sources
@@ -404,12 +375,10 @@ class PotentialFieldWithSources(PotentialField):
             loc = q.popleft()
             for to_spread in [pos for pos in self.driver.neighbours(loc)
                              if self.terrain.get_at(pos) == LAND]:
-                if self.get_at(to_spread) == None:
-                    self.set_at(to_spread, self.get_at(loc) + 1)
-                    self.merge_sources(to_spread, self.get_at_sources(loc))
-                    if self.get_at(to_spread) < depth:
-                        q.append(to_spread)
-                elif self.get_at(to_spread) == self.get_at(loc):
+                (insert_to_queue, spread_sources) = self.spread_potential(loc, to_spread, depth_limit)
+                if (insert_to_queue):
+                    q.append(to_spread)
+                if spread_sources and self.is_source_expansion_allowed():
                     self.merge_sources(to_spread, self.get_at_sources(loc))
     
     def get_sources(self):
@@ -420,33 +389,55 @@ class PotentialFieldWithSources(PotentialField):
         self.field = [[None for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.spread(self.get_sources(), depth)
 
-    def render_text_map(self):
+    def render_text_map(self, render_sources = None):
+        if render_sources == None:
+            render_sources = False
         tmp = ''
         for row in range(self.driver.rows):
             tmp += '# '
             for col in range(self.driver.cols):
                 val = self.get_at((row, col))
                 if val == None:
-                    tmp += '   ?   '
+                    tmp += ' ? '
                 else:
                     tmp += ' (%3i' % val
-                    tmp += str(self.get_at_sources((row, col)))
+                    if render_sources:
+                        tmp += str(self.get_at_sources((row, col)))
                     tmp += ') '
             tmp += '\n'
         tmp += '\n'
         return tmp
-
-    def get_potential(self, loc, none_value, poten_func):
-        """ Computes potential on specified position in the field """
-        if self.get_at(loc) == None:
-            return none_value
-        else:
-            return poten_func(self.get_at(loc))
  
+    def is_source_expansion_allowed(self):
+        return True
+
+    def init_potential(self, loc, depth_limit):
+        self.set_at(loc, 0)
+
+    """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """
+    def spread_potential(self, loc_from, loc_to, depth_limit):
+        if self.get_at(loc_to) == None:
+            self.set_at(loc_to, self.get_at(loc_from) + 1)
+            if self.get_at(loc_to) < depth_limit:
+                return (True, True)
+            else:
+                return (False, True)
+        elif self.get_at(loc_to) == self.get_at(loc_from) + 1:
+            return (False, True)
+        else:
+            return (False, False)
+ 
+class FogPotentialField(PotentialFieldWithSources):
+
+    def get_sources(self):
+        not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
+                if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
+        return not_visible_charted
+   
+    def is_source_expansion_allowed(self):
+        return False 
  
 class FoodPotentialFieldWithSources(PotentialFieldWithSources):
-    def __init__(self):
-        PotentialFieldWithSources.__init__(self)
         
     def get_sources(self):
-        return self.driver.food_list
+        return self.driver.all_food()

@@ -16,6 +16,7 @@ class AntsDriver(Ants):
         self.driver_enemy_hills = []
         self.driver_last_moves = {}
         self.driver_current_moves = {}
+        self.driver_food_list = []
         self.turn_number = 0
 
     def all_enemy_hills(self):
@@ -23,6 +24,9 @@ class AntsDriver(Ants):
 
     def all_my_hills(self):
         return self.driver_my_hills
+
+    def all_food(self):
+        return self.driver_food_list
 
     def closest(self, loc, loc_list, filter = None):
         min_dist = maxint
@@ -75,22 +79,22 @@ class AntsDriver(Ants):
 
     def update(self, map_data):
         Ants.update(self, map_data)
-        self.turn_number += 1
         self.my_ants_loc = self.my_ants()[:]
-        self.driver_my_hills = self.update_hills(self.driver_my_hills, self.my_hills())
+        self.driver_my_hills = self.update_all_loc_list(self.driver_my_hills, self.my_hills())
         visible_enemy_hills = map(lambda x: x[0], self.enemy_hills())
-        self.driver_enemy_hills = self.update_hills(self.driver_enemy_hills, visible_enemy_hills) 
+        self.driver_enemy_hills = self.update_all_loc_list(self.driver_enemy_hills, visible_enemy_hills)
+        self.driver_food_list = self.update_all_loc_list(self.driver_food_list, self.food_list)
 
-    def update_hills(self, old_hills, visible_hills):
-        tmp_hills = []
-        for hill_loc in old_hills:
-            if (self.visible(hill_loc) and not hill_loc in visible_hills):
+    def update_all_loc_list(self, old_loc_list, visible_loc_list):
+        tmp_loc_list = []
+        for loc in old_loc_list:
+            if (self.visible(loc) and not loc in visible_loc_list):
                 continue
-            tmp_hills.append(hill_loc)
-        for hill_loc in visible_hills:
-            if (not hill_loc in tmp_hills):
-                tmp_hills.append(hill_loc)
-        return tmp_hills
+            tmp_loc_list.append(loc)
+        for loc in visible_loc_list:
+            if (not loc in tmp_loc_list):
+                tmp_loc_list.append(loc)
+        return tmp_loc_list
     
     def neighbours(self, loc):
         return [self.destination(loc, dir) for dir in ['n','e','s','w']]

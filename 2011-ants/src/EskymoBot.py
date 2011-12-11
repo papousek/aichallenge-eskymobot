@@ -1,6 +1,7 @@
 from AntsDriver import *
 from Maps import Terrain, MapWithAnts
 from Fields import *
+from math import sqrt
 
 class EskymoBot:
 
@@ -67,9 +68,10 @@ class EskymoBot:
 
     def compute_scouter_potential(self, loc):
         return \
-            1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
-            1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
-            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
+            0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
+            1.5 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
+            1.0 * self.fog_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            0.1 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
 
     def compute_attacker_potential(self, loc):
         """ Computes total potential on specified location on the map for attackes """
@@ -91,6 +93,7 @@ class EskymoBot:
                     break
     
     def defend(self, ants, hill_loc):
+        self.driver.log("[DEFENDING " + str(hill_loc) + "] started")
         for ant_loc in ants:
             distance = self.driver.distance(ant_loc, hill_loc)
             if (distance == 1):
@@ -99,6 +102,7 @@ class EskymoBot:
                 self.move_random(ant_loc)
             else:
                 self.move_to(ant_loc, hill_loc)
+        self.driver.log("[DEFENDING " + str(hill_loc) + "] finished")
 
     def farm(self, ants):
         lost_ants = []
@@ -146,36 +150,6 @@ class EskymoBot:
             if (self.driver.passable(neigh_loc)):
                 result = result + 1
         return result
-
-    def __random_walk(self, ants):
-        # this function is (maybe) no more needed
-        hunted_food = []
-        # with food
-        while(ants != []):
-            ant_loc = None
-            closest_food = None
-            distance = None
-            for current_ant_loc in ants:
-                current_closest_food = self.driver.closest_food(current_ant_loc, hunted_food)
-                if (current_closest_food == None):
-                    continue
-                current_distance = self.driver.distance(current_ant_loc, current_closest_food)
-                if (closest_food == None or distance > current_distance):
-                    ant_loc = current_ant_loc
-                    closest_food = current_closest_food
-                    distance = current_distance
-                    continue
-            if (closest_food == None):
-                break
-            ants.remove(ant_loc)
-            hunted_food.append(closest_food)                
-            self.driver.move_to(ant_loc, closest_food)            
-        # without food                        
-        for ant_loc in ants:
-            use_last_move = True
-            if (random.randint(1,100) > 90):
-                use_last_move = False
-            self.driver.move_random(ant_loc, ['n','e','s','w'], use_last_move)
     
     def do_turn(self):
         # update attributes
@@ -184,15 +158,15 @@ class EskymoBot:
         pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
         pre_fpf = self.driver.time_remaining()
-        self.food_potential_field.update(10)
+        self.food_potential_field.update(2 * int(sqrt(self.driver.viewradius2)))
         pre_ehpf = self.driver.time_remaining()
-        self.enemy_hill_potential_field.update()
+        self.enemy_hill_potential_field.update(None, 1000)
         pre_upf = self.driver.time_remaining()
-        self.uncharted_potential_field.update()
-        pre_upfg = self.driver.time_remaining()
-        self.fog_potential_field.update(20)
+        self.uncharted_potential_field.update(None, 3000)
+        pre_fgpf = self.driver.time_remaining()
+        self.fog_potential_field.update(3 * int(sqrt(self.driver.viewradius2)))
         pre_ants = self.driver.time_remaining()
-        #self.driver.log(self.map_with_ants.render_text_map())
+        self.driver.log(self.uncharted_potential_field.render_text_map())
         # available ants
         ants = self.driver.my_ants()
         num_of_ants = len(ants)
@@ -209,22 +183,23 @@ class EskymoBot:
             self.defend(defenders, hill_loc)
             num_of_defenders_sum = num_of_defenders_sum + num_of_defenders
         # attackers
-        num_of_attackers = len(self.driver.all_enemy_hills()) * max((num_of_ants - num_of_defenders_sum) / (num_of_enemy_hills + 1) - 4, 0)
-        ants = sorted(ants, key = lambda ant : -self.compute_attacker_potential(ant))
-        attackers = ants[:num_of_attackers]
-        ants = ants[num_of_attackers:]
-        self.attack(attackers, hill_loc)
-        num_of_attackers_sum = num_of_attackers_sum + num_of_attackers
+        for hill_loc in self.driver.all_enemy_hills():
+            num_of_attackers = len(self.driver.all_enemy_hills()) * max((num_of_ants - num_of_defenders_sum) / (num_of_enemy_hills + 1) - 4, 0)
+            ants = sorted(ants, key = lambda ant : -self.compute_attacker_potential(ant))
+            attackers = ants[:num_of_attackers]
+            ants = ants[num_of_attackers:]
+            self.attack(attackers, hill_loc)
+            num_of_attackers_sum = num_of_attackers_sum + num_of_attackers
         # farmers
         farmers = sorted(ants, key = lambda ant: -self.compute_farmer_potential(ant))
         self.farm(farmers)
         post_ants = self.driver.time_remaining()
-        if False:
+        if True:
             self.driver.log("Terrain: " + str(-(pre_mwa - pre_t)) +
                 ", Map With Ants: " + str(-(pre_fpf - pre_mwa)) +
                 ", Food Field: " + str(-(pre_ehpf - pre_fpf)) +
                 ", Enemy Hill: " + str(-(pre_upf - pre_ehpf)) +
-                ", Uncharted: " + str(-(pre_upfg - pre_upf)) +
-                ", Fog: " + str(-(pre_ants - pre_upfg)) +
+                ", Uncharted: " + str(-(pre_fgpf - pre_upf)) +
+                ", Fog: " + str(-(pre_ants - pre_fgpf)) +
                 ", Movement: " + str(-(post_ants - pre_ants)))
         

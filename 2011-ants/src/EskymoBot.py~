@@ -162,7 +162,7 @@ class EskymoBot:
         pre_ehpf = self.driver.time_remaining()
         self.enemy_hill_potential_field.update(None, 1000)
         pre_upf = self.driver.time_remaining()
-        self.uncharted_potential_field.update(None, 1500)
+        self.uncharted_potential_field.update(None, 3000)
         pre_fgpf = self.driver.time_remaining()
         self.fog_potential_field.update(3 * int(sqrt(self.driver.viewradius2)))
         pre_ants = self.driver.time_remaining()

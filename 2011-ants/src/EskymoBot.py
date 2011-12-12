@@ -70,13 +70,13 @@ class EskymoBot:
         return \
             0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.5 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
-            1.0 * self.fog_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
-            0.1 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
+            0.3 * self.fog_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
+            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
 
     def compute_attacker_potential(self, loc):
         """ Computes total potential on specified location on the map for attackes """
         return \
-            1.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
+            0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
             10.0 * self.enemy_hill_potential_field.get_potential(loc, 10000000, lambda x: -1000 * x)
         
@@ -93,7 +93,6 @@ class EskymoBot:
                     break
     
     def defend(self, ants, hill_loc):
-        self.driver.log("[DEFENDING " + str(hill_loc) + "] started")
         for ant_loc in ants:
             distance = self.driver.distance(ant_loc, hill_loc)
             if (distance == 1):
@@ -102,7 +101,6 @@ class EskymoBot:
                 self.move_random(ant_loc)
             else:
                 self.move_to(ant_loc, hill_loc)
-        self.driver.log("[DEFENDING " + str(hill_loc) + "] finished")
 
     def farm(self, ants):
         lost_ants = []
@@ -142,6 +140,8 @@ class EskymoBot:
                 enemies = reduce(lambda x,y:min(x,y), filter(lambda x: x > 0, [len(self.compute_enemies(loc, owner, self.attackradius2_plus_two)) for (loc, owner) in enemy_ants]), 100)
                 if (len(enemy_ants) == 0 or len(enemy_ants) < enemies) and self.try_to_move_ant(ant_loc, direction):
                     break 
+            else:
+                self.driver.move_random(ant_loc)
 
     def max_number_of_defenders(self, hill_loc):
         result = 0
@@ -158,15 +158,15 @@ class EskymoBot:
         pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
         pre_fpf = self.driver.time_remaining()
-        self.food_potential_field.update(2 * int(sqrt(self.driver.viewradius2)))
+        self.food_potential_field.update(4 * int(sqrt(self.driver.viewradius2)))
         pre_ehpf = self.driver.time_remaining()
-        self.enemy_hill_potential_field.update(None, 1000)
+        self.enemy_hill_potential_field.update(None, 500)
         pre_upf = self.driver.time_remaining()
-        self.uncharted_potential_field.update(None, 1500)
+        self.uncharted_potential_field.update(None, 2000)
         pre_fgpf = self.driver.time_remaining()
-        self.fog_potential_field.update(3 * int(sqrt(self.driver.viewradius2)))
+        self.fog_potential_field.update(2 * int(sqrt(self.driver.viewradius2)))
         pre_ants = self.driver.time_remaining()
-        self.driver.log(self.uncharted_potential_field.render_text_map())
+#        self.driver.log(self.food_potential_field.render_text_map())
         # available ants
         ants = self.driver.my_ants()
         num_of_ants = len(ants)
@@ -194,7 +194,7 @@ class EskymoBot:
         farmers = sorted(ants, key = lambda ant: -self.compute_farmer_potential(ant))
         self.farm(farmers)
         post_ants = self.driver.time_remaining()
-        if True:
+        if False:
             self.driver.log("Terrain: " + str(-(pre_mwa - pre_t)) +
                 ", Map With Ants: " + str(-(pre_fpf - pre_mwa)) +
                 ", Food Field: " + str(-(pre_ehpf - pre_fpf)) +

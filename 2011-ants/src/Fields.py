@@ -1,7 +1,7 @@
 import heapq
 from collections import deque
 from ants import LAND
-from Maps import UNCHARTED
+from Maps import *
 from math import sqrt
 
 #TODO There is no need to calculated the whole potential field during update, find a better way
@@ -109,12 +109,17 @@ class PotentialFieldWithSources(PotentialField):
             for col in range(self.driver.cols):
                 val = self.get_at((row, col))
                 if val == None:
-                    tmp += ' ? '
+                    if self.terrain.get_at((row, col)) == LAND:
+                        tmp += '  ?  '
+                    elif self.terrain.get_at((row, col)) == UNCHARTED:
+                        tmp += '  U  '
+                    elif self.terrain.get_at((row, col)) == WATER:
+                        tmp += '  #  '
                 else:
-                    tmp += ' (%3i' % val
+                    tmp += '%3i' % val
                     if render_sources:
                         tmp += str(self.get_at_sources((row, col)))
-                    tmp += ') '
+                    tmp += '  '
             tmp += '\n'
         tmp += '\n'
         return tmp

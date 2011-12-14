@@ -11,6 +11,7 @@ class Terrain:
     def __init__(self):
         self.map = None
         self.driver = None
+        self.new_fields = []
     
     def setup(self, driver):
         self.driver = driver
@@ -18,6 +19,7 @@ class Terrain:
                     for row in range(self.driver.rows)]
                     
     def update(self):
+        self.new_fields = []
         # if vision map is not ready, initialize it
         if (self.driver.vision == None):
             self.driver.visible((0, 0))
@@ -32,6 +34,7 @@ class Terrain:
         for r, rows in enumerate(self.driver.vision):
             for c, data in enumerate(rows):
                 if data and self.map[r][c] == UNCHARTED:
+                    self.new_fields.append((r,c))
                     self.map[r][c] = LAND
         
     def get_at(self, (row, col)):

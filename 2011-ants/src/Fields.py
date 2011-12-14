@@ -47,7 +47,8 @@ class PotentialFieldWithSources(PotentialField):
         
     def setup(self, driver, terrain):
         PotentialField.setup(self, driver, terrain)
-        self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]   
+        if self.is_source_expansion_allowed():
+            self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]   
         self.to_spread_queue = deque()
 
     def merge_sources(self, loc, sources):
@@ -58,44 +59,48 @@ class PotentialFieldWithSources(PotentialField):
         row, col = loc
         return self.sources[row][col]
         
+    def initialize_source(self, (row,col), depth_limit):
+        self.init_potential((row,col), depth_limit)
+        if self.is_source_expansion_allowed():
+            self.sources[row][col].add((row,col))
+    
+    def expand_source(self, source, depth_limit, step_limit):
+        next_sources = []
+        for to_spread in [pos for pos in self.driver.neighbours(source) if self.terrain.get_at(pos) == LAND]:
+            (insert_to_queue, spread_sources) = self.spread_potential(source, to_spread, depth_limit)
+            if insert_to_queue:
+                next_sources.append(to_spread)
+            if spread_sources and self.is_source_expansion_allowed():
+                self.merge_sources(to_spread, self.get_at_sources(source))
+        return next_sources
+    
     def spread(self, sources, depth_limit, step_limit):
         """ Spreads the intensity from specified sources using distances of the sources. Assumes self.sources is full of empty sets """
         num_of_steps = 0
-        q = self.to_spread_queue
-        continuing = False
-        if len(q) != 0:
-            continuing = True
-        if len(q) == 0:
-            for source in sources:
-                if self.get_at(source) != None:
-                    continue
-                self.init_potential(source, depth_limit)
-                row, col = source
-                if self.is_source_expansion_allowed():
-                    self.sources[row][col].add(source)
-                q.append(source)
+        for source in sources:
+            self.to_spread_queue.append(source)
+            if self.get_at(source) == None:
+                self.initialize_source(source, depth_limit)    
                 num_of_steps = num_of_steps + 1
-                if step_limit != None and num_of_steps >= step_limit:
-                    return
+        
+        if step_limit != None and num_of_steps >= step_limit:
+            return
+            
         # Expand sources
-        while len(q) > 0:
-            loc = q.popleft()
-            for to_spread in [pos for pos in self.driver.neighbours(loc)
-                             if self.terrain.get_at(pos) == LAND]:
-                (insert_to_queue, spread_sources) = self.spread_potential(loc, to_spread, depth_limit)
-                if (insert_to_queue):
-                    q.append(to_spread)
-                if spread_sources and self.is_source_expansion_allowed():
-                    self.merge_sources(to_spread, self.get_at_sources(loc))
-                num_of_steps = num_of_steps + 1
-                if step_limit != None and num_of_steps >= step_limit:
-                    return
+        while len(self.to_spread_queue) > 0:
+            loc = self.to_spread_queue.popleft()
+            next_sources = self.expand_source(loc, depth_limit, step_limit)
+            self.to_spread_queue.extend(next_sources)
+            num_of_steps += len(next_sources)
+            if step_limit != None and num_of_steps >= step_limit:
+                return
 
     def get_sources(self):
         return []
     
     def update(self, depth_limit = None, step_limit = None):
-        self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
+        if self.is_source_expansion_allowed():
+            self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.field = [[None for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.to_spread_queue = deque()
         self.spread(self.get_sources(), depth_limit, step_limit)
@@ -125,14 +130,18 @@ class PotentialFieldWithSources(PotentialField):
         return tmp
  
     def is_source_expansion_allowed(self):
+        """ Expanduje pouze vzdalenosti, nikoliv zdroje """ 
         return True
 
     def init_potential(self, loc, depth_limit):
         self.set_at(loc, 0)
 
+    def is_valid(self, loc):
+        return self.get_at(loc) == 0 or reduce(lambda x, y: x or y, [self.get_at(neigh) < self.get_at(loc) for neigh in self.driver.neighbours(loc) if self.get_at(neigh) != None], False)
+        
     """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """
     def spread_potential(self, loc_from, loc_to, depth_limit):
-        if self.get_at(loc_to) == None:
+        if self.get_at(loc_to) == None or self.get_at(loc_to) > (self.get_at(loc_from) + 1):
             self.set_at(loc_to, self.get_at(loc_from) + 1)
             if depth_limit == None or self.get_at(loc_to) < depth_limit:
                 return (True, True)
@@ -149,7 +158,7 @@ class FogPotentialField(PotentialFieldWithSources):
         not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
                 if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
         return not_visible_charted
-   
+
     def is_source_expansion_allowed(self):
         return False 
  
@@ -162,28 +171,35 @@ class MostlyStaticPotentialField(PotentialFieldWithSources):
 
     def __init__(self):
         PotentialFieldWithSources.__init__(self)
-        self.old_sources = []
 
     def update(self, depth_limit = None, step_limit = None):
-        if self.should_be_updated():
-            self.old_sources = self.get_sources()
-            PotentialFieldWithSources.update(self, depth_limit, step_limit)
+        tmp = [self.driver.neighbours(loc) for loc in self.terrain.new_fields]
+        new_fields = filter(lambda loc: self.terrain.get_at(loc) == LAND and self.get_at(loc) != None, [neigh for neighs in tmp for neigh in neighs])
+        self.to_spread_queue.extend(set(new_fields))
+        self.spread(self.get_sources(), depth_limit, step_limit)
+
+    """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """
+    def spread_potential(self, loc_from, loc_to, depth_limit):
+        if self.get_at(loc_to) == None or self.get_at(loc_to) > (self.get_at(loc_from) + 1) or not self.is_valid(loc_to):
+            self.set_at(loc_to, self.get_at(loc_from) + 1)
+            if depth_limit == None or self.get_at(loc_to) < depth_limit:
+                return (True, True)
+            else:
+                return (False, True)
+        elif self.get_at(loc_to) == self.get_at(loc_from) + 1:
+            return (False, True)
         else:
-            self.spread(self.get_sources(), depth_limit, step_limit)
-
-    def should_be_updated(self):
-        new = set(self.get_sources())
-        old = set(self.old_sources)
-        return new != old
-
+            return (False, False)
+        
 class UnchartedPotentialField(MostlyStaticPotentialField):
 
     def is_source_expansion_allowed(self):
-        return False 
+        return False
 
     def update(self, depth_limit = None, step_limit = None):
         self.uncharted_sources = None
-        MostlyStaticPotentialField.update(self, depth_limit, step_limit)
+        PotentialFieldWithSources.update(self, depth_limit, step_limit)
+        #MostlyStaticPotentialField.update(self, depth_limit, step_limit)
         
     def get_sources(self):
         if self.uncharted_sources == None:
@@ -194,9 +210,28 @@ class UnchartedPotentialField(MostlyStaticPotentialField):
         return self.uncharted_sources
 
 class EnemyHillPotentialField(MostlyStaticPotentialField):
-      
-    def get_sources(self):
-        return self.driver.driver_enemy_hills[:]
 
+    def __init__(self):
+        MostlyStaticPotentialField.__init__(self)
+        self.prev_sources = []
+        self.new_sources = []
+        
     def is_source_expansion_allowed(self):
-        return False 
+        return False
+
+    def get_sources(self):
+        return self.new_sources
+
+    def update(self, depth_limit = None, step_limit = None):
+        all_sources = self.driver.driver_enemy_hills[:]
+        if len(set(self.prev_sources) - set(all_sources)) > 0:
+            #Some sources were removed
+            self.new_sources = all_sources[:]
+            PotentialFieldWithSources.update(self, depth_limit, step_limit)
+            self.prev_sources = all_sources[:]
+        else:
+            self.new_sources = list(set(all_sources) - set(self.prev_sources))
+            MostlyStaticPotentialField.update(self, depth_limit, step_limit)
+            self.prev_sources = all_sources[:]
+            
+        

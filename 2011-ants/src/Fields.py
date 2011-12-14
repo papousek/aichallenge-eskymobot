@@ -49,7 +49,7 @@ class PotentialFieldWithSources(PotentialField):
         PotentialField.setup(self, driver, terrain)
         if self.is_source_expansion_allowed():
             self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]   
-        self.to_spread_queue = deque()
+        self.to_spread_list = []
 
     def merge_sources(self, loc, sources):
         row, col = loc
@@ -76,22 +76,15 @@ class PotentialFieldWithSources(PotentialField):
     
     def spread(self, sources, depth_limit, step_limit):
         """ Spreads the intensity from specified sources using distances of the sources. Assumes self.sources is full of empty sets """
-        num_of_steps = 0
-        for source in sources:
-            self.to_spread_queue.append(source)
-            if self.get_at(source) == None:
-                self.initialize_source(source, depth_limit)    
-                num_of_steps = num_of_steps + 1
-        
-        if step_limit != None and num_of_steps >= step_limit:
-            return
-            
+        map(lambda source: self.initialize_source(source, depth_limit), filter(lambda source: self.get_at(source) == None, sources))
+        self.to_spread_list.extend(sources)
+
         # Expand sources
-        while len(self.to_spread_queue) > 0:
-            loc = self.to_spread_queue.popleft()
-            next_sources = self.expand_source(loc, depth_limit, step_limit)
-            self.to_spread_queue.extend(next_sources)
-            num_of_steps += len(next_sources)
+        num_of_steps = 0
+        while len(self.to_spread_list) > 0:
+            self.to_spread_list = reduce(lambda x,y:x+y, map(lambda source: self.expand_source(source, depth_limit, step_limit), self.to_spread_list), [])
+            self.to_spread_list = list(set(self.to_spread_list))
+            num_of_steps += len(self.to_spread_list)
             if step_limit != None and num_of_steps >= step_limit:
                 return
 
@@ -102,7 +95,7 @@ class PotentialFieldWithSources(PotentialField):
         if self.is_source_expansion_allowed():
             self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.field = [[None for col in range(self.driver.cols)] for row in range(self.driver.rows)]
-        self.to_spread_queue = deque()
+        self.to_spread_list = []
         self.spread(self.get_sources(), depth_limit, step_limit)
 
     def render_text_map(self, render_sources = None):
@@ -175,7 +168,7 @@ class MostlyStaticPotentialField(PotentialFieldWithSources):
     def update(self, depth_limit = None, step_limit = None):
         tmp = [self.driver.neighbours(loc) for loc in self.terrain.new_fields]
         new_fields = filter(lambda loc: self.terrain.get_at(loc) == LAND and self.get_at(loc) != None, [neigh for neighs in tmp for neigh in neighs])
-        self.to_spread_queue.extend(set(new_fields))
+        self.to_spread_list.extend(set(new_fields))
         self.spread(self.get_sources(), depth_limit, step_limit)
 
     """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """

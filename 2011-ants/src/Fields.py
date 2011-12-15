@@ -74,8 +74,9 @@ class PotentialFieldWithSources(PotentialField):
                 self.merge_sources(to_spread, self.get_at_sources(source))
         return next_sources
     
-    def spread(self, sources, depth_limit, step_limit):
+    def spread(self, sources, depth_limit, step_limit, deadline_time):
         """ Spreads the intensity from specified sources using distances of the sources. Assumes self.sources is full of empty sets """
+        # deadline_time is a time moment at which computation should finish
         map(lambda source: self.initialize_source(source, depth_limit), filter(lambda source: self.get_at(source) == None, sources))
         self.to_spread_list.extend(sources)
 
@@ -85,18 +86,18 @@ class PotentialFieldWithSources(PotentialField):
             self.to_spread_list = reduce(lambda x,y:x+y, map(lambda source: self.expand_source(source, depth_limit, step_limit), self.to_spread_list), [])
             self.to_spread_list = list(set(self.to_spread_list))
             num_of_steps += len(self.to_spread_list)
-            if step_limit != None and num_of_steps >= step_limit:
+            if (step_limit != None and num_of_steps >= step_limit) or (deadline_time != None and self.driver.get_time_in_ms() > deadline_time):
                 return
 
     def get_sources(self):
         return []
     
-    def update(self, depth_limit = None, step_limit = None):
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
         if self.is_source_expansion_allowed():
             self.sources = [[set() for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.field = [[None for col in range(self.driver.cols)] for row in range(self.driver.rows)]
         self.to_spread_list = []
-        self.spread(self.get_sources(), depth_limit, step_limit)
+        self.spread(self.get_sources(), depth_limit, step_limit, deadline_time)
 
     def render_text_map(self, render_sources = None):
         if render_sources == None:
@@ -145,31 +146,16 @@ class PotentialFieldWithSources(PotentialField):
         else:
             return (False, False)
  
-class FogPotentialField(PotentialFieldWithSources):
-
-    def get_sources(self):
-        not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
-                if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
-        return not_visible_charted
-
-    def is_source_expansion_allowed(self):
-        return False 
- 
-class FoodPotentialFieldWithSources(PotentialFieldWithSources):
-        
-    def get_sources(self):
-        return self.driver.all_food()
-
 class MostlyStaticPotentialField(PotentialFieldWithSources):
 
     def __init__(self):
         PotentialFieldWithSources.__init__(self)
 
-    def update(self, depth_limit = None, step_limit = None):
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
         tmp = [self.driver.neighbours(loc) for loc in self.terrain.new_fields]
         new_fields = filter(lambda loc: self.terrain.get_at(loc) == LAND and self.get_at(loc) != None, [neigh for neighs in tmp for neigh in neighs])
         self.to_spread_list.extend(set(new_fields))
-        self.spread(self.get_sources(), depth_limit, step_limit)
+        self.spread(self.get_sources(), depth_limit, step_limit, deadline_time)
 
     """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """
     def spread_potential(self, loc_from, loc_to, depth_limit):
@@ -183,16 +169,96 @@ class MostlyStaticPotentialField(PotentialFieldWithSources):
             return (False, True)
         else:
             return (False, False)
+
+class DoubleBufferedPotentialField(PotentialFieldWithSources):
+
+    def __init__(self):
+        PotentialFieldWithSources.__init__(self)
+        front_buffer_field = None
+
+    def swap_buffers(self):
+        self.front_buffer_field = self.field
+        self.field = [[None for col in range(self.cols)] for row in range(self.rows)]        
         
-class UnchartedPotentialField(MostlyStaticPotentialField):
+    def setup(self, driver, terrain):
+        PotentialFieldWithSources.setup(self, driver, terrain)
+        self.front_buffer_field = [[None for col in range(self.cols)] for row in range(self.rows)]
+
+    def get_potential(self, (row,col), none_value, poten_func):
+        """ Computes potential on specified position in the field """
+        if self.front_buffer_field[row][col] == None:
+            return none_value
+        else:
+            return poten_func(self.front_buffer_field[row][col])
+        
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
+        if self.to_spread_list != []:
+            # There is still something left to process from the previous run
+            self.spread([], depth_limit, step_limit, deadline_time)
+            if self.to_spread_list == []:
+                # Everything was processed so swap buffers and run current turn
+                self.swap_buffers()
+                PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
+                if self.to_spread_list == []:
+                    # Everything was processed so swap buffers
+                    self.swap_buffers()
+        else:
+            PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
+            if self.to_spread_list == []:
+                # Everything was processed so swap buffers
+                self.swap_buffers()            
+                
+class FogPotentialField1(PotentialFieldWithSources):
+
+    def get_sources(self):
+        not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
+                if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
+        return not_visible_charted
+
+    def is_source_expansion_allowed(self):
+        return False 
+
+class FogPotentialField2(DoubleBufferedPotentialField):
+
+    def get_sources(self):
+        not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
+                if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
+        return not_visible_charted
+
+    def is_source_expansion_allowed(self):
+        return False 
+
+class FoodPotentialFieldWithSources(PotentialFieldWithSources):
+        
+    def get_sources(self):
+        return self.driver.all_food()
+            
+class UnchartedPotentialField1(MostlyStaticPotentialField):
 
     def is_source_expansion_allowed(self):
         return False
 
-    def update(self, depth_limit = None, step_limit = None):
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
         self.uncharted_sources = None
-        PotentialFieldWithSources.update(self, depth_limit, step_limit)
-        #MostlyStaticPotentialField.update(self, depth_limit, step_limit)
+        PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
+        #MostlyStaticPotentialField.update(self, depth_limit, step_limit, deadline_time)
+        
+    def get_sources(self):
+        if self.uncharted_sources == None:
+            is_uncharted = lambda loc: self.terrain.get_at(loc) == UNCHARTED
+            is_uncharted_source = lambda loc: is_uncharted(loc) and [neigh for neigh in self.driver.neighbours(loc) if not is_uncharted(neigh)]
+            self.uncharted_sources = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
+                    if is_uncharted_source((row, col))]
+        return self.uncharted_sources
+        
+class UnchartedPotentialField2(DoubleBufferedPotentialField):
+
+    def is_source_expansion_allowed(self):
+        return False
+
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
+        self.uncharted_sources = None
+        DoubleBufferedPotentialField.update(self, depth_limit, step_limit, deadline_time)
         
     def get_sources(self):
         if self.uncharted_sources == None:
@@ -202,7 +268,7 @@ class UnchartedPotentialField(MostlyStaticPotentialField):
                     if is_uncharted_source((row, col))]
         return self.uncharted_sources
 
-class EnemyHillPotentialField(MostlyStaticPotentialField):
+class EnemyHillPotentialField1(MostlyStaticPotentialField):
 
     def __init__(self):
         MostlyStaticPotentialField.__init__(self)
@@ -215,16 +281,100 @@ class EnemyHillPotentialField(MostlyStaticPotentialField):
     def get_sources(self):
         return self.new_sources
 
-    def update(self, depth_limit = None, step_limit = None):
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
         all_sources = self.driver.driver_enemy_hills[:]
         if len(set(self.prev_sources) - set(all_sources)) > 0:
             #Some sources were removed
             self.new_sources = all_sources[:]
-            PotentialFieldWithSources.update(self, depth_limit, step_limit)
+            PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
             self.prev_sources = all_sources[:]
         else:
             self.new_sources = list(set(all_sources) - set(self.prev_sources))
-            MostlyStaticPotentialField.update(self, depth_limit, step_limit)
+            MostlyStaticPotentialField.update(self, depth_limit, step_limit, deadline_time)
             self.prev_sources = all_sources[:]
             
+class EnemyHillPotentialField2(PotentialFieldWithSources):
+    #None: this is be MostlyStatic and DoubleBuffered field, the following implementation is a bit hack
+    # (after all, it turned out it is not better than the previous one)
+    def __init__(self):
+        PotentialFieldWithSources.__init__(self)
+        front_buffer_field = None
+        self.prev_sources = []
+        self.new_sources = []
+           
+    def setup(self, driver, terrain):
+        PotentialFieldWithSources.setup(self, driver, terrain)
+        self.front_buffer_field = [[None for col in range(self.cols)] for row in range(self.rows)]
+
+    def swap_buffers(self):
+        self.front_buffer_field = self.field
+        self.field = [[None for col in range(self.cols)] for row in range(self.rows)]        
         
+    def is_source_expansion_allowed(self):
+        return False
+
+    def get_sources(self):
+        return self.new_sources
+
+    def get_potential(self, (row,col), none_value, poten_func):
+        """ Computes potential on specified position in the field """
+        if self.front_buffer_field[row][col] == None:
+            return none_value
+        else:
+            return poten_func(self.front_buffer_field[row][col])
+        
+    """ Vraci (bool, bool) -- (toto policko ma dale sirit potencial, ma se rozsirit zdroj) """
+    def spread_potential(self, loc_from, loc_to, depth_limit):
+        if self.get_at(loc_to) == None or self.get_at(loc_to) > (self.get_at(loc_from) + 1) or not self.is_valid(loc_to):
+            self.set_at(loc_to, self.get_at(loc_from) + 1)
+            if depth_limit == None or self.get_at(loc_to) < depth_limit:
+                return (True, True)
+            else:
+                return (False, True)
+        elif self.get_at(loc_to) == self.get_at(loc_from) + 1:
+            return (False, True)
+        else:
+            return (False, False)
+            
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
+        if self.to_spread_list != []:
+            # There is still something left to process from the previous run
+            self.spread([], depth_limit, step_limit, deadline_time)
+            if self.to_spread_list == []:
+                # Everything was processed so swap buffers and run next turn
+                self.swap_buffers()
+                PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
+                if self.to_spread_list == []:
+                    # Everything was processed so swap buffers
+                    self.swap_buffers()
+        else:
+            # New run
+            all_sources = self.driver.driver_enemy_hills[:]
+            if len(set(self.prev_sources) - set(all_sources)) > 0:
+                #Some sources were removed
+                self.new_sources = all_sources[:]
+                PotentialFieldWithSources.update(self, depth_limit, step_limit, deadline_time)
+                if self.to_spread_list == []:
+                    # Everything was processed so swap buffers
+                    self.swap_buffers()            
+                self.prev_sources = all_sources[:]
+            else:
+                self.new_sources = list(set(all_sources) - set(self.prev_sources))
+                tmp = [self.driver.neighbours(loc) for loc in self.terrain.new_fields]
+                new_fields = filter(lambda loc: self.terrain.get_at(loc) == LAND and self.get_at(loc) != None, [neigh for neighs in tmp for neigh in neighs])
+                self.to_spread_list.extend(set(new_fields))
+                self.spread(self.get_sources(), depth_limit, step_limit, deadline_time)
+                if self.to_spread_list == []:
+                    # Everything was processed so swap buffers
+                    self.swap_buffers()            
+                self.prev_sources = all_sources[:]
+
+class FogPotentialField(FogPotentialField2):
+    pass
+
+class UnchartedPotentialField(UnchartedPotentialField2):
+    pass
+
+class EnemyHillPotentialField(EnemyHillPotentialField1):
+    pass
+    

@@ -159,13 +159,13 @@ class EskymoBot:
         pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
         pre_fpf = self.driver.time_remaining()
-        self.food_potential_field.update(4 * int(sqrt(self.driver.viewradius2)))
+        self.food_potential_field.update(depth_limit = 4 * int(sqrt(self.driver.viewradius2)), deadline_time = self.driver.get_time_in_ms() + 100)
         pre_ehpf = self.driver.time_remaining()
-        self.enemy_hill_potential_field.update(None, 500)
+        self.enemy_hill_potential_field.update(deadline_time = self.driver.get_time_in_ms() + 100)
         pre_upf = self.driver.time_remaining()
-        self.uncharted_potential_field.update(None, 1500)
+        self.uncharted_potential_field.update(deadline_time = self.driver.get_time_in_ms() + 100)
         pre_fgpf = self.driver.time_remaining()
-        self.fog_potential_field.update(2 * int(sqrt(self.driver.viewradius2)))
+        self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = self.driver.get_time_in_ms() + 50)
         pre_ants = self.driver.time_remaining()
         #self.driver.log(self.uncharted_potential_field.render_text_map())
         # available ants
@@ -203,5 +203,6 @@ class EskymoBot:
                 ", Enemy Hill: " + str(-(pre_upf - pre_ehpf)) +
                 ", Uncharted: " + str(-(pre_fgpf - pre_upf)) +
                 ", Fog: " + str(-(pre_ants - pre_fgpf)) +
-                ", Movement: " + str(-(post_ants - pre_ants)))
+                ", Movement: " + str(-(post_ants - pre_ants)) +
+                ", Time left: " + str(post_ants))
         

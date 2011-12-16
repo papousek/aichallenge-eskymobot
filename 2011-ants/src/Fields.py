@@ -210,6 +210,8 @@ class DoubleBufferedPotentialField(PotentialFieldWithSources):
                 
 class FogPotentialField1(PotentialFieldWithSources):
 
+    # This may be replaced with the implementation of the following class, the only thing that needs
+    # to be changed is DoubleBufferedPotentialField.update(...) -> PotentialFieldWithSources.update(...)
     def get_sources(self):
         not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
                 if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
@@ -220,13 +222,35 @@ class FogPotentialField1(PotentialFieldWithSources):
 
 class FogPotentialField2(DoubleBufferedPotentialField):
 
-    def get_sources(self):
-        not_visible_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
-                if self.terrain.get_at((row,col)) == LAND and not self.driver.visible((row, col))]
-        return not_visible_charted
-
     def is_source_expansion_allowed(self):
-        return False 
+        return False
+
+    def update(self, depth_limit = None, step_limit = None, deadline_time = None):
+        self.fogged_sources = None
+        DoubleBufferedPotentialField.update(self, depth_limit, step_limit, deadline_time)
+        
+    def get_sources(self):
+        if self.fogged_sources == None:
+            #is_fog_source = lambda loc: self.terrain.get_at(loc) == LAND and not self.driver.visible(loc)
+            is_fog_source = lambda loc: not self.driver.visible(loc)
+            all_fogged = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if is_fog_source((row,col))]
+            all_unfogged = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if not is_fog_source((row,col))]
+            # choose the algorithm which should spend less time
+            if len(all_fogged) < len(all_unfogged):
+                has_unfogged_below = filter(lambda loc: not is_fog_source(self.driver.destination(loc, 's')), all_fogged)
+                has_unfogged_above = filter(lambda loc: not is_fog_source(self.driver.destination(loc, 'n')), all_fogged)
+                has_unfogged_left = filter(lambda loc: not is_fog_source(self.driver.destination(loc, 'w')), all_fogged)
+                has_unfogged_right = filter(lambda loc: not is_fog_source(self.driver.destination(loc, 'e')), all_fogged)
+                self.fogged_sources = has_unfogged_below + has_unfogged_above + has_unfogged_left + has_unfogged_right
+                self.fogged_sources = list(set(self.fogged_sources))
+            else:
+                fogged_below = filter(is_fog_source, [self.driver.destination(loc, 's') for loc in all_unfogged])
+                fogged_above = filter(is_fog_source, [self.driver.destination(loc, 'n') for loc in all_unfogged])
+                fogged_left = filter(is_fog_source, [self.driver.destination(loc, 'w') for loc in all_unfogged])
+                fogged_right = filter(is_fog_source, [self.driver.destination(loc, 'e') for loc in all_unfogged])
+                self.fogged_sources = fogged_below + fogged_above + fogged_left + fogged_right
+                self.fogged_sources = list(set(self.fogged_sources))
+        return self.fogged_sources
 
 class FoodPotentialFieldWithSources(PotentialFieldWithSources):
         

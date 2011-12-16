@@ -170,7 +170,7 @@ class EskymoBot:
             return False
     def update_fog(self):
         """ Updates fog_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 250:
+        if self.driver.time_remaining() > 300:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
             self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - 50)
@@ -192,7 +192,7 @@ class EskymoBot:
             return False
     def update_uncharted(self):
         """ Updates uncharted_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 350:
+        if self.driver.time_remaining() > 300:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
             self.uncharted_potential_field.update(deadline_time = pre_time - 100)

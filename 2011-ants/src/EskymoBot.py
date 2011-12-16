@@ -28,6 +28,14 @@ class EskymoBot:
         self.fog_update_time = 0
         self.enemy_update_time = 0
         self.uncharted_update_time = 0
+        self.food_reserved = self.driver.turntime * 150 / 500
+        self.food_deadline = self.driver.turntime * 100 / 500
+        self.fog_reserved = self.driver.turntime * 300 / 500
+        self.fog_deadline = self.driver.turntime * 50 / 500
+        self.enemy_reserved = self.driver.turntime * 150 / 500
+        self.enemy_deadline = self.driver.turntime * 100 / 500
+        self.uncharted_reserved = self.driver.turntime * 300 / 500
+        self.uncharted_deadline = self.driver.turntime * 100 / 500
     
     def try_to_move_ant(self, ant_loc, direction):
         """ Basically, this method has the same purpose as AntsDriver.move, but should behave better """
@@ -73,17 +81,17 @@ class EskymoBot:
 
     def compute_scouter_potential(self, loc):
         return \
-            0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.5 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
-            0.3 * self.fog_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x) + \
-            0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
+            0.3 * self.fog_potential_field.get_potential(loc, 0, lambda x: 0.5 ** x)
+            #0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
+            #0.0 * self.enemy_hill_potential_field.get_potential(loc, 0, lambda x: max(200 - x, 0) / 200.0)    
 
     def compute_attacker_potential(self, loc):
         """ Computes total potential on specified location on the map for attackes """
         return \
-            0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
             1.0 * self.uncharted_potential_field.get_potential(loc, 0, lambda x: 400 * (1.2 ** (-x))) + \
             10.0 * self.enemy_hill_potential_field.get_potential(loc, 10000000, lambda x: -1000 * x)
+            #0.0 * self.food_potential_field.get_potential(loc, 0, lambda x: max(1, 1313 * (1.5 ** (-x)))) + \
         
     def attack(self, ants, hill_loc):
         for ant_loc in ants:
@@ -159,10 +167,10 @@ class EskymoBot:
     
     def update_food(self):
         """ Updates food_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 150:
+        if self.driver.time_remaining() > self.food_reserved:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
-            self.food_potential_field.update(depth_limit = 4 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - 100)
+            self.food_potential_field.update(depth_limit = 4 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - self.food_deadline)
             self.food_update_time = pre_time - self.driver.time_remaining()
             return True
         else:
@@ -170,10 +178,10 @@ class EskymoBot:
             return False
     def update_fog(self):
         """ Updates fog_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 300:
+        if self.driver.time_remaining() > self.fog_reserved:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
-            self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - 50)
+            self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - self.fog_deadline)
             self.fog_update_time = pre_time - self.driver.time_remaining()
             return True
         else:
@@ -181,10 +189,10 @@ class EskymoBot:
             return False
     def update_enemy_hill(self):
         """ Updates enemy_hill_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 150:
+        if self.driver.time_remaining() > self.enemy_reserved:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
-            self.enemy_hill_potential_field.update(deadline_time = pre_time - 100)
+            self.enemy_hill_potential_field.update(deadline_time = pre_time - self.enemy_deadline)
             self.enemy_update_time = pre_time - self.driver.time_remaining()
             return True
         else:
@@ -192,10 +200,10 @@ class EskymoBot:
             return False
     def update_uncharted(self):
         """ Updates uncharted_potential_field, returns true if the field was updated """
-        if self.driver.time_remaining() > 300:
+        if self.driver.time_remaining() > self.uncharted_reserved:
             # If there is enough time, do update
             pre_time = self.driver.time_remaining()
-            self.uncharted_potential_field.update(deadline_time = pre_time - 100)
+            self.uncharted_potential_field.update(deadline_time = pre_time - self.uncharted_deadline)
             self.uncharted_update_time = pre_time - self.driver.time_remaining()
             return True
         else:

@@ -245,10 +245,23 @@ class UnchartedPotentialField1(MostlyStaticPotentialField):
         
     def get_sources(self):
         if self.uncharted_sources == None:
-            is_uncharted = lambda loc: self.terrain.get_at(loc) == UNCHARTED
-            is_uncharted_source = lambda loc: is_uncharted(loc) and [neigh for neigh in self.driver.neighbours(loc) if not is_uncharted(neigh)]
-            self.uncharted_sources = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
-                    if is_uncharted_source((row, col))]
+            all_uncharted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if self.terrain.get_at((row, col)) == UNCHARTED]
+            all_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if self.terrain.get_at((row, col)) != UNCHARTED]
+            # choose the algorithm which should spend less time
+            if len(all_uncharted) < len(all_charted):
+                has_charted_below = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 's')) != UNCHARTED, all_uncharted)
+                has_charted_above = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'n')) != UNCHARTED, all_uncharted)
+                has_charted_left = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'w')) != UNCHARTED, all_uncharted)
+                has_charted_right = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'e')) != UNCHARTED, all_uncharted)
+                self.uncharted_sources = has_charted_below + has_charted_above + has_charted_left + has_charted_right
+                self.uncharted_sources = list(set(self.uncharted_sources))
+            else:
+                uncharted_below = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 's') for loc in all_charted])
+                uncharted_above = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'n') for loc in all_charted])
+                uncharted_left = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'w') for loc in all_charted])
+                uncharted_right = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'e') for loc in all_charted])
+                self.uncharted_sources = uncharted_below + uncharted_above + uncharted_left + uncharted_right
+                self.uncharted_sources = list(set(self.uncharted_sources))
         return self.uncharted_sources
         
 class UnchartedPotentialField2(DoubleBufferedPotentialField):
@@ -262,10 +275,23 @@ class UnchartedPotentialField2(DoubleBufferedPotentialField):
         
     def get_sources(self):
         if self.uncharted_sources == None:
-            is_uncharted = lambda loc: self.terrain.get_at(loc) == UNCHARTED
-            is_uncharted_source = lambda loc: is_uncharted(loc) and [neigh for neigh in self.driver.neighbours(loc) if not is_uncharted(neigh)]
-            self.uncharted_sources = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols)
-                    if is_uncharted_source((row, col))]
+            all_uncharted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if self.terrain.get_at((row, col)) == UNCHARTED]
+            all_charted = [(row, col) for row in range(self.driver.rows) for col in range(self.driver.cols) if self.terrain.get_at((row, col)) != UNCHARTED]
+            # choose the algorithm which should spend less time
+            if len(all_uncharted) < len(all_charted):
+                has_charted_below = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 's')) != UNCHARTED, all_uncharted)
+                has_charted_above = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'n')) != UNCHARTED, all_uncharted)
+                has_charted_left = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'w')) != UNCHARTED, all_uncharted)
+                has_charted_right = filter(lambda loc: self.terrain.get_at(self.driver.destination(loc, 'e')) != UNCHARTED, all_uncharted)
+                self.uncharted_sources = has_charted_below + has_charted_above + has_charted_left + has_charted_right
+                self.uncharted_sources = list(set(self.uncharted_sources))
+            else:
+                uncharted_below = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 's') for loc in all_charted])
+                uncharted_above = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'n') for loc in all_charted])
+                uncharted_left = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'w') for loc in all_charted])
+                uncharted_right = filter(lambda loc: self.terrain.get_at(loc) == UNCHARTED, [self.driver.destination(loc, 'e') for loc in all_charted])
+                self.uncharted_sources = uncharted_below + uncharted_above + uncharted_left + uncharted_right
+                self.uncharted_sources = list(set(self.uncharted_sources))
         return self.uncharted_sources
 
 class EnemyHillPotentialField1(MostlyStaticPotentialField):

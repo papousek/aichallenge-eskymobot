@@ -86,7 +86,7 @@ class PotentialFieldWithSources(PotentialField):
             self.to_spread_list = reduce(lambda x,y:x+y, map(lambda source: self.expand_source(source, depth_limit, step_limit), self.to_spread_list), [])
             self.to_spread_list = list(set(self.to_spread_list))
             num_of_steps += len(self.to_spread_list)
-            if (step_limit != None and num_of_steps >= step_limit) or (deadline_time != None and self.driver.get_time_in_ms() > deadline_time):
+            if (step_limit != None and num_of_steps >= step_limit) or (deadline_time != None and self.driver.time_remaining() < deadline_time):
                 return
 
     def get_sources(self):

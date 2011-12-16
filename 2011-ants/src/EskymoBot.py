@@ -23,6 +23,11 @@ class EskymoBot:
         self.fog_potential_field.setup(self.driver, self.terrain)
         self.attackradius2_plus_one = int((sqrt(self.driver.attackradius2) + 1.0) ** 2.0)
         self.attackradius2_plus_two = int((sqrt(self.driver.attackradius2) + 2.0) ** 2.0)
+        self.fields_to_update = [self.update_food, self.update_uncharted, self.update_fog, self.update_enemy_hill]
+        self.food_update_time = 0
+        self.fog_update_time = 0
+        self.enemy_update_time = 0
+        self.uncharted_update_time = 0
     
     def try_to_move_ant(self, ant_loc, direction):
         """ Basically, this method has the same purpose as AntsDriver.move, but should behave better """
@@ -152,23 +157,72 @@ class EskymoBot:
                 result = result + 1
         return result
     
+    def update_food(self):
+        """ Updates food_potential_field, returns true if the field was updated """
+        if self.driver.time_remaining() > 150:
+            # If there is enough time, do update
+            pre_time = self.driver.time_remaining()
+            self.food_potential_field.update(depth_limit = 4 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - 100)
+            self.food_update_time = pre_time - self.driver.time_remaining()
+            return True
+        else:
+            self.food_update_time = -99
+            return False
+    def update_fog(self):
+        """ Updates fog_potential_field, returns true if the field was updated """
+        if self.driver.time_remaining() > 250:
+            # If there is enough time, do update
+            pre_time = self.driver.time_remaining()
+            self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = pre_time - 50)
+            self.fog_update_time = pre_time - self.driver.time_remaining()
+            return True
+        else:
+            self.fog_update_time = -99
+            return False
+    def update_enemy_hill(self):
+        """ Updates enemy_hill_potential_field, returns true if the field was updated """
+        if self.driver.time_remaining() > 150:
+            # If there is enough time, do update
+            pre_time = self.driver.time_remaining()
+            self.enemy_hill_potential_field.update(deadline_time = pre_time - 100)
+            self.enemy_update_time = pre_time - self.driver.time_remaining()
+            return True
+        else:
+            self.enemy_update_time = -99
+            return False
+    def update_uncharted(self):
+        """ Updates uncharted_potential_field, returns true if the field was updated """
+        if self.driver.time_remaining() > 350:
+            # If there is enough time, do update
+            pre_time = self.driver.time_remaining()
+            self.uncharted_potential_field.update(deadline_time = pre_time - 100)
+            self.uncharted_update_time = pre_time - self.driver.time_remaining()
+            return True
+        else:
+            self.uncharted_update_time = -99
+            return False
+            
     def do_turn(self):
-        # update attributes
+        # update maps
         pre_t = self.driver.time_remaining()
         self.terrain.update()
         pre_mwa = self.driver.time_remaining()
         self.map_with_ants.update()
-        pre_fpf = self.driver.time_remaining()
-        self.food_potential_field.update(depth_limit = 4 * int(sqrt(self.driver.viewradius2)), deadline_time = self.driver.get_time_in_ms() + 100)
-        pre_ehpf = self.driver.time_remaining()
-        self.enemy_hill_potential_field.update(deadline_time = self.driver.get_time_in_ms() + 100)
-        pre_upf = self.driver.time_remaining()
-        self.uncharted_potential_field.update(deadline_time = self.driver.get_time_in_ms() + 100)
-        pre_fgpf = self.driver.time_remaining()
-        self.fog_potential_field.update(depth_limit = 2 * int(sqrt(self.driver.viewradius2)), deadline_time = self.driver.get_time_in_ms() + 50)
-        pre_ants = self.driver.time_remaining()
-        #self.driver.log(self.uncharted_potential_field.render_text_map())
+        post_mwa = self.driver.time_remaining()
+        
+        # update fields
+        to_update = self.fields_to_update
+        self.fields_to_update = []
+        for field in to_update:
+            if field():
+                # The field was updated, put it into the back of the list
+                self.fields_to_update = self.fields_to_update + [field]
+            else:
+                # The field was not updated, put it into the front of the list so that it had more time to update next turn
+                self.fields_to_update = [field] + self.fields_to_update
+
         # available ants
+        pre_ants = self.driver.time_remaining()
         ants = self.driver.my_ants()
         num_of_ants = len(ants)
         num_of_my_hills = len(self.driver.all_my_hills())
@@ -198,11 +252,11 @@ class EskymoBot:
         if False:
             post_ants = self.driver.time_remaining()
             self.driver.log("Terrain: " + str(-(pre_mwa - pre_t)) +
-                ", Map With Ants: " + str(-(pre_fpf - pre_mwa)) +
-                ", Food Field: " + str(-(pre_ehpf - pre_fpf)) +
-                ", Enemy Hill: " + str(-(pre_upf - pre_ehpf)) +
-                ", Uncharted: " + str(-(pre_fgpf - pre_upf)) +
-                ", Fog: " + str(-(pre_ants - pre_fgpf)) +
+                ", Map With Ants: " + str(-(post_mwa - pre_mwa)) +
+                ", Food Field: " + str(self.food_update_time) +
+                ", Enemy Hill: " + str(self.enemy_update_time) +
+                ", Uncharted: " + str(self.uncharted_update_time) +
+                ", Fog: " + str(self.fog_update_time) +
                 ", Movement: " + str(-(post_ants - pre_ants)) +
                 ", Time left: " + str(post_ants))
         

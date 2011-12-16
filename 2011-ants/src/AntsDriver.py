@@ -107,8 +107,8 @@ class AntsDriver(Ants):
         d_row = min(abs(row1 - row2), self.rows - abs(row1 - row2))
         return d_col ** 2 + d_row ** 2 
         
-    def get_time_in_ms(self):
-        return int(1000 * (time()))
+    #def get_time_in_ms(self):
+    #    return int(1000 * (time()))
         
     def log(self, text):
         f = open("eskymo.log", "a")

@@ -239,7 +239,7 @@ class EskymoBot:
         num_of_attackers_sum = 0
         # defenders
         for hill_loc in self.driver.all_my_hills():
-            num_of_defenders = min(num_of_ants / (num_of_my_hills+1), self.max_number_of_defenders(hill_loc))
+            num_of_defenders = min(num_of_ants / (2 * num_of_my_hills), self.max_number_of_defenders(hill_loc))
             ants = sorted(ants, key=lambda ant:self.driver.distance(ant,hill_loc))
             defenders = ants[:num_of_defenders]
             ants = ants[num_of_defenders:]

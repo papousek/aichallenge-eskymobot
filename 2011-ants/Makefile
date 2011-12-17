@@ -49,6 +49,9 @@ test: package
 run: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/tools/sample_bots/python/HunterBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
+run-cell-maze-big: package
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/cell_maze/cell_maze_p08_06.map "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \    
+
 run-old: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/v8/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 

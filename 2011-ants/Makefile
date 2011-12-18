@@ -38,6 +38,14 @@ download: init
         cp target/v8/2011-ants/src/* target/v8/2011-ants/target; \
         cp ../aichallenge/ants/dist/starter_bots/python/ants.py target/v8/2011-ants/target; \
     fi
+	if [ ! -d "target/v12" ]; then \
+        wget https://github.com/papousek/aichallenge-eskymobot/zipball/v12 -O target/v12.zip; \
+        unzip target/v12.zip -d target; \
+        mv target/papousek-aichallenge-eskymobot-7890041 target/v12; \
+        mkdir target/v12/2011-ants/target; \
+        cp target/v12/2011-ants/src/* target/v12/2011-ants/target; \
+        cp ../aichallenge/ants/dist/starter_bots/python/ants.py target/v12/2011-ants/target; \
+    fi
 
 package: download
 	cp src/* target;
@@ -53,22 +61,25 @@ run-cell-maze-big: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/cell_maze/cell_maze_p08_06.map "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \    
 
 run-old: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/v8/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/v12/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-revert: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/MyBot.py" "python target/v8/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/example/tutorial1.map "python target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-medium: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/random_walk/random_walk_04p_01.map "python target/v6/2011-ants/target/MyBot.py" "python target/v6/2011-ants/target/MyBot.py" "python target/v8/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/random_walk/random_walk_04p_01.map "python target/v6/2011-ants/target/MyBot.py" "python target/v6/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-maze: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_02.map "python target/v8/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_02.map "python target/v12/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-maze-revert: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_02.map "python target/MyBot.py" "python target/v8/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_02p_02.map "python target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
 
 run-old-maze-medium: package
-	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_04p_01.map "python target/v8/2011-ants/target/MyBot.py" "python target/v8/2011-ants/target/MyBot.py" "python target/v8/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/maze/maze_04p_01.map "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
+
+run-old-cell-maze-big: package
+	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/cell_maze/cell_maze_p08_06.map "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/v12/2011-ants/target/MyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \    
 
 run-medium: package
 	target/tools/playgame.py --player_seed 42 --end_wait=0.25 --verbose -e --log_dir target/game_logs --turns 1000 --map_file target/tools/maps/random_walk/random_walk_04p_01.map "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/HunterBot.py" "python target/tools/sample_bots/python/GreedyBot.py" "python target/MyBot.py" -So | java -jar target/tools/visualizer.jar; \
